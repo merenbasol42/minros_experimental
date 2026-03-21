@@ -1,126 +1,164 @@
 # minros
 
-`minros`, düşük kaynaklı gömülü sistemler için geliştirdiğimiz, C++17 tabanlı ve header-only bir mesajlaşma kütüphanesidir.  
-Amaç, güvenilir ve güvenilmez (best-effort) kanal iletişimini sade bir wire protokolü üzerinde bir araya getirmektir.
+`minros`, düşük kaynaklı gömülü sistemler için C++17 tabanlı, header-only bir mesajlaşma kütüphanesidir.
+Güvenilir (ACK + retransmit) ve güvenilmez (best-effort) kanal iletişimini sade bir wire protokolü üzerinde sunar.
 
-## Mimari Hedefler
+---
 
-- Mümkün olduğunca küçük RAM/flash ayak izi (statik buffer, dinamik allocation yok)
-- Katmanlı ve değiştirilebilir yapı (transport bağımsız çekirdek)
-- Daha öngörülebilir çalışma (loop tabanlı, blocking olmayan akış)
-- Basit güvenilirlik (ACK + timeout + retransmit)
+## Tasarım İlkeleri
 
-## Katmanlar
+### Heap yok, sanal dispatch yok
 
-### 1) Wire Protocol (`core/wireframe.hpp`)
+Dinamik bellek tahsisi (`new`, `malloc`) ve sanal fonksiyon (`virtual`) kullanılmaz.
+Tüm nesneler derleme zamanında boyutu bilinen statik buffer'larda yaşar; bu gömülü sistemlerde bellek tükenmesi ve öngörülemeyen gecikme riskini ortadan kaldırır.
 
-Çerçeve formatını tanımlar:
+### Template parametreleriyle kaynak kontrolü
 
-- `HEADER(4)` + `LEN(1)` + `DATA(LEN)` + `CRC(1)`
-- `DATA = CH_ID(1) + SEQ(1) + PAYLOAD(n)`
-- `CRC-8/SMBUS` (DATA alanı üzerinden)
+Statik buffer'lar sabit boyutlu olduğundan farklı projeler farklı miktarda RAM ayırır.
+`Node`, `Parser`, `Sequencer` ve `Framer` template parametreleriyle proje ihtiyacına göre ayarlanabilir:
 
-Bu katman, platformdan bağımsız protokol tanımını içerir.
+```cpp
+// Küçük bir düğüm: 4 abone, 32 byte'lık frame, 2 reliable kanal
+minros::Node</*MAX_SUBS=*/4, /*MAX_FRAME_DATA=*/32, /*MAX_RELIABLE=*/2> node;
+```
 
-### 2) Framer (`core/framer.hpp`)
+### Donanımdan bağımsız
 
-Uygulama payload’unu wire frame’e dönüştürür:
+Kütüphane içinde hiçbir donanım çağrısı yoktur.
+UART, SPI, USB-CDC, UDP — hangisini kullandığınız fark etmez; siz dört callback atarsınız, kütüphane onu transport olarak kullanır:
 
-- `build(ch_id, seq, payload, payload_len)`
-- İç buffer’a frame yazar, `data()` / `size()` ile çıkış verir
+```cpp
+node.transport = {
+    .send_bytes = { my_uart_write,     ctx },
+    .read_bytes = { my_uart_read,      ctx },
+    .get_size   = { my_uart_available, ctx },
+    .get_time   = { my_millis,         ctx },
+};
+```
 
-Temel sorumluluğu *frame üretmek*tir.
+Aynı çekirdek kod, transport callback'leri değiştirilerek UART'tan UDP'ye geçebilir; iç katmanlarda hiçbir şey değişmez.
 
-### 3) Parser (`core/parser.hpp`)
+### Basitlik
 
-Byte stream’den frame çıkarır:
+Arayüz kasıtlı olarak küçük tutulmuştur.
+`Node::spin_once()` her döngüde çağrılır; gelen baytları işler ve timeout tick'lerini atar. Başka bir orkestrasyon gerekmez.
 
-- Durum makinesi: `HEADER_WAIT -> LENGTH_WAIT -> DATA_READING -> CRC_WAIT`
-- Geçerli frame yakalanınca callback tetikler
-- CRC/uzunluk hatalarında resetleyerek akışı sürdürür
+---
 
-Temel sorumluluğu *frame ayrıştırmak*tır.
+## Mimari
 
-### 4) Broker (`core/broker.hpp`)
+```
+┌─────────────────────────────────┐
+│             Node                │  ← Kullanıcı arayüzü (facade)
+│  create_publisher / subscribe   │
+│  spin_once()                    │
+└────┬──────────────┬─────────────┘
+     │              │
+  Gönderim       Alım
+     │              │
+  Framer        Parser  ──→  Broker  ──→  Subscriber callback'leri
+     │
+  Transport (kullanıcı sağlar)
+     │
+  Sequencer  ←──────────────────────────  ACK kanalı (CH249)
+```
 
-Parse edilen frame’i kanal bazında dağıtır:
+### Katmanlar
 
-- `CH_ID` üzerinden subscriber callback seçimi
-- `SEQ` ve `payload` kullanıcı callback’ine iletilir
+| Dosya | Sorumluluk |
+|---|---|
+| `core/wireframe.hpp` | Frame formatı sabitleri, CRC-8/SMBUS |
+| `core/framer.hpp` | Payload → wire frame dönüşümü |
+| `core/parser.hpp` | Byte stream → frame (durum makinesi) |
+| `core/broker.hpp` | CH_ID bazında callback yönlendirme |
+| `reliability/sequencer.hpp` | seq üretimi, ACK takibi, duplicate filtre |
+| `node.hpp` | Tüm katmanları birleştiren facade |
+| `std_msgs/` | CRTP tabanlı sabit boyutlu mesaj tipleri |
 
-Temel sorumluluğu *kanal yönlendirme*tir.
+---
 
-### 5) Reliability (`reliability/sequencer.hpp`)
+## Wire Protokolü
 
-Güvenilir yayın/abonelik davranışını yönetir:
+```
+┌──────────┬─────┬────────────────────────────┬─────┐
+│ HEADER   │ LEN │ DATA                       │ CRC │
+│ 4 byte   │ 1 B │ CH_ID(1) SEQ(1) PAYLOAD(n) │ 1 B │
+└──────────┴─────┴────────────────────────────┴─────┘
+```
 
-- Publisher tarafı: `seq` üretimi, `ack_pending`, timeout takibi
-- Subscriber tarafı: duplicate filtreleme + otomatik ACK gönderimi
-- Timeout’ta kullanıcıya `retransmit` callback’i
+- **HEADER**: `{0x6D, 0x72, 0x6F, 0x73}` (`mros`) — senkronizasyon
+- **LEN**: DATA uzunluğu (3–249)
+- **CRC**: CRC-8/SMBUS, DATA alanının tamamı üzerinden (CH_ID + SEQ + PAYLOAD)
+- Wire formatı little-endian; host dönüşümü `utils/endian.hpp` ile otomatik
 
-Temel sorumluluğu *state yönetimi*dir; kullanıcı verisi göndermez.
+---
 
-### 6) Node (`node.hpp`)
+## Veri Akışı
 
-Tüm katmanları birleştiren facade:
+### Gönderim
 
-- Transport callback’leri üzerinden IO
-- `spin_once()` içinde: input byte tüketimi + timeout tick
-- `create_publisher` / `create_subscription` ile uygulama API’si
+1. Uygulama mesajı (`std_msgs`) `to_bytes()` ile serileştirilir.
+2. Reliable ise `Sequencer::acquire_seq()` ile seq alınır.
+3. `Framer::build()` wire frame üretir.
+4. `Transport::send_bytes` frame'i iletir.
 
-`Node`, kütüphanenin pratikteki ana entegrasyon noktasıdır.
+### Alım
 
-## Uçtan Uca Veri Akışı
+1. `spin_once()` → `Transport::get_size` + `Transport::read_bytes` ile baytlar parser buffer'ına alınır (zero-copy).
+2. `Parser::commit(n)` durum makinesini çalıştırır; frame tamamlanınca broker tetiklenir.
+3. `Broker`, `CH_ID` üzerinden ilgili subscriber callback'ini çağırır.
+4. Reliable abonelikte duplicate kontrolü ve ACK gönderimi otomatiktir.
 
-### Gönderim (Publish Path)
+---
 
-1. Uygulama mesajı (`std_msgs`) byte’a serileştirilir.
-2. Reliable ise sequencer’dan `seq` alınır.
-3. Framer wire frame üretir.
-4. Transport `send_bytes` ile frame gönderilir.
+## Kullanım
 
-### Alım (Receive Path)
+```cpp
+#include <minros/node.hpp>
+#include <minros/std_msgs/twist.hpp>
 
-1. Transport’tan gelen byte’lar parser’a verilir.
-2. Parser frame tamamlayınca broker callback’i tetikler.
-3. Broker `CH_ID` üzerinden ilgili subscriber’a yönlendirir.
-4. Reliable abonelikte duplicate kontrolü ve ACK otomatik yapılır.
+minros::Node<> node;
 
-## Transport Soyutlaması
+// Transport bağla
+node.transport = { ... };
 
-Kütüphane doğrudan UART/SPI/Ethernet sürücüsüne bağlı değildir.  
-Platform entegrasyonu için `Transport` callback’leri atanır:
+// Reliable publisher
+auto cmd = node.create_publisher<minros::std_msgs::Twist>(
+    CH_CMD, "cmd_vel", /*reliable=*/true, { on_retransmit, nullptr }
+);
 
-- `read_bytes`
-- `send_bytes`
-- `get_size`
-- `get_time`
+// Reliable subscriber
+node.create_subscription<minros::std_msgs::Twist>(
+    CH_CMD, { on_cmd_received, nullptr }, /*reliable=*/true
+);
 
-Böylece aynı çekirdek, uygun adaptörlerle farklı donanım/RTOS ortamlarında yeniden kullanılabilir.
+// Loop içinde
+void loop() {
+    node.spin_once();
+    cmd.publish(twist_msg);
+}
+```
 
-## Mesaj Modeli (`std_msgs`)
+---
 
-`std_msgs` katmanı CRTP tabanlı sabit boyutlu mesaj tipleri sunar:
+## Sınırlar
 
-- `Vector3`, `Quaternion`, `Twist`, `PidGains`, primitive tipler
-- `to_bytes` / `from_bytes` ile deterministic serialization
-- Endianness dönüşümü `utils/endian.hpp` ile yönetilir
+- Thread-safe değildir; tipik kullanım tek döngü/thread içindir.
+- Reliability modeli basittir: ACK + retry. Tam bir transport protokolü (akış kontrolü, sıralama garantisi) değildir.
+- CH_ID ayrımı ve kanal planlaması kullanıcı sorumluluğundadır.
+- Parser buffer'ı bir frame'den büyük olamaz; çok büyük payload'lar `MAX_FRAME_DATA` ile kısıtlanmalıdır.
 
-## Tasarım Kararları
+---
 
-- `header-only`: entegrasyonu sade tutmak
-- `no dynamic memory`: gömülü tarafta daha öngörülebilir davranış hedefi
-- `delegate` tabanlı callback: `std::function` maliyetinden kaçınma
-- Templated limitler: `MAX_SUBS`, `MAX_DATA`, `MAX_RELIABLE` ile compile-time kaynak kontrolü
+## Yol Haritası
 
-## Sınırlar ve Beklentiler
+### Opsiyonel keşif katmanı
 
-- Thread-safe olma iddiası yoktur; tipik kullanım tek loop/thread’dir.
-- Reliability modeli basittir (ACK + retry), tam bir transport protokolü değildir.
-- Uygulama seviyesinde kanal planlaması (`CH_ID` ayrımı) kullanıcı sorumluluğundadır.
+İkili (binary) protokol olmasına karşın birden fazla cihazın birbirini tanıyıp mesajlaşabilmesi için bir keşif mekanizması planlanmaktadır.
+Her düğüm yayınladığı/abone olduğu kanalları ve mesaj tiplerini duyurabilecek; bir merkez düğüm (MQTT broker benzeri) bu bilgileri toplayarak çok-noktaya yönlendirme yapabilecektir.
+Bu özellik opsiyonel olacak ve mevcut çekirdeğe dokunmayacaktır.
 
-## Geliştirme Yönü
+### Diğer
 
-- Birim test kapsamının genişletilmesi (parser, framer, sequencer edge-case’leri)
-- Hata callback’lerinin standartlaştırılması
-- Mesaj introspection ve tooling entegrasyonunun olgunlaştırılması
+- Birim test kapsamının genişletilmesi (parser edge-case'leri, sequencer wraparound)
+- Hata callback'lerinin standartlaştırılması
