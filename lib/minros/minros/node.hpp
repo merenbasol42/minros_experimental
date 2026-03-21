@@ -60,7 +60,7 @@ namespace minros {
     public:
         using ChannelCallback    = typename core::Broker<MAX_SUBS>::ChannelCallback;
         using ParseErrorCallback = typename core::Parser<MAX_FRAME_DATA>::ErrorCallback;
-        using RetransmitCallback = typename reliability::Sequencer<MAX_RELIABLE>::RetransmitCallback;
+        using RetransmitCallback = typename reliability::Sequencer<MAX_RELIABLE, MAX_RELIABLE>::RetransmitCallback;
 
         // ── Publisher ────────────────────────────────────────────────────────
         //
@@ -121,12 +121,7 @@ namespace minros {
 
         // Periyodik işlemler — loop() içinde çağır
         void spin_once() {
-            u8 size = transport.get_size();
-            for (u8 i = 0; i < size; i++) {
-                u8 data;
-                transport.read_bytes(&data, 1);
-                parser_.process_once(data);
-            }
+            feed_parser();
             sequencer_.tick(transport.get_time());
         }
 
@@ -173,7 +168,15 @@ namespace minros {
         core::Parser<MAX_FRAME_DATA>         parser_;
         core::Broker<MAX_SUBS>               broker_;
         core::Framer<MAX_FRAME_DATA>         framer_;
-        reliability::Sequencer<MAX_RELIABLE> sequencer_;
+        reliability::Sequencer<MAX_RELIABLE, MAX_RELIABLE> sequencer_;
+
+        void feed_parser() {
+            auto w = parser_.write_window();
+            u8 n = transport.get_size();
+            if (n > w.size) n = w.size;
+            transport.read_bytes(w.data, n);
+            parser_.commit(n);
+        }
 
         // Sequencer'ın ACK frame'lerini göndermesi için köprü.
         // Sequencer send_ack'i fn(ch_id, seq, payload, len) ile çağırır.

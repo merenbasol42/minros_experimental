@@ -11,7 +11,7 @@ namespace minros::core {
     // Frame yapısı:
     //   [HEADER(4)] [LENGTH(1)] [CH_ID(1)] [SEQ (1)] [PAYLOAD(n)] [CRC(1)]
     //
-    // CRC: CRC-8/SMBUS — DATA = CH_ID+PAYLOAD üzerinden.
+    // CRC: CRC-8/SMBUS — DATA (CH_ID + SEQ + PAYLOAD) üzerinden.
     // Maksimum payload uzunluğu: MAX_DATA - 2 (wireframe::MIN_DATA)
     //
     // Template parametreler:

@@ -8,9 +8,9 @@ namespace minros::core {
     //
     // Frame DATA layout:
     //   CH_ID  : 1 byte       (arr[from+0])                     -> kanal kimliği
-    //   PAYLOAD: size-2 bytes (arr[from+1] .. arr[from+size-1]) -> asıl veri 
+    //   SEQ    : 1 byte       (arr[from+1])                     -> sıra numarası
+    //   PAYLOAD: size-2 bytes (arr[from+2] .. arr[from+size-1]) -> asıl veri
     //
-    // TODO: byte hesabına bakmak lazım
     // Template parametre:
     //   MAX_SUBS — maksimum eş zamanlı abonelik sayısı (varsayılan 32)
     //              Küçük MCU'larda 4-8 arası yeterli olabilir; her slot
