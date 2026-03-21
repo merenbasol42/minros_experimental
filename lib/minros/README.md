@@ -1,7 +1,7 @@
 # minros
 
-`minros`, düşük kaynaklı gömülü sistemler için C++17 tabanlı, header-only bir mesajlaşma kütüphanesidir.
-Güvenilir (ACK + retransmit) ve güvenilmez (best-effort) kanal iletişimini sade bir wire protokolü üzerinde sunar.
+`minros`, düşük kaynaklı gömülü sistemler için C++17 tabanlı, header-only bir mesajlaşma kütüphanesi geliştirme deneyimidir.
+Güvenilir (ACK + retransmit) ve güvenilmez (best-effort) kanal iletişimini sade bir wire protokolü üzerinde bir araya getirmeyi hedeflemektedir.
 
 ---
 
@@ -9,23 +9,23 @@ Güvenilir (ACK + retransmit) ve güvenilmez (best-effort) kanal iletişimini sa
 
 ### Heap yok, sanal dispatch yok
 
-Dinamik bellek tahsisi (`new`, `malloc`) ve sanal fonksiyon (`virtual`) kullanılmaz.
-Tüm nesneler derleme zamanında boyutu bilinen statik buffer'larda yaşar; bu gömülü sistemlerde bellek tükenmesi ve öngörülemeyen gecikme riskini ortadan kaldırır.
+Dinamik bellek tahsisi (`new`, `malloc`) ve sanal fonksiyon (`virtual`) kullanılmaması hedeflenmektedir.
+Tüm nesneler derleme zamanında boyutu bilinen statik buffer'larda tutulmakta; bu sayede gömülü sistemlerde bellek tükenmesi ve öngörülemeyen gecikme riskinin önüne geçilmesi amaçlanmaktadır.
 
 ### Template parametreleriyle kaynak kontrolü
 
 Statik buffer'lar sabit boyutlu olduğundan farklı projeler farklı miktarda RAM ayırır.
-`Node`, `Parser`, `Sequencer` ve `Framer` template parametreleriyle proje ihtiyacına göre ayarlanabilir:
+`Node`, `Parser`, `Sequencer` ve `Framer` template parametreleriyle proje ihtiyacına göre ayarlanabilmektedir:
 
 ```cpp
 // Küçük bir düğüm: 4 abone, 32 byte'lık frame, 2 reliable kanal
 minros::Node</*MAX_SUBS=*/4, /*MAX_FRAME_DATA=*/32, /*MAX_RELIABLE=*/2> node;
 ```
 
-### Donanımdan bağımsız
+### Donanımdan bağımsızlık
 
-Kütüphane içinde hiçbir donanım çağrısı yoktur.
-UART, SPI, USB-CDC, UDP — hangisini kullandığınız fark etmez; siz dört callback atarsınız, kütüphane onu transport olarak kullanır:
+Kütüphane içinde donanıma özgü herhangi bir çağrı bulunmaması hedeflenmektedir.
+IO işlevleri kullanıcı tarafından dört callback ile sağlanır; kütüphane bunları transport olarak kullanır:
 
 ```cpp
 node.transport = {
@@ -36,12 +36,12 @@ node.transport = {
 };
 ```
 
-Aynı çekirdek kod, transport callback'leri değiştirilerek UART'tan UDP'ye geçebilir; iç katmanlarda hiçbir şey değişmez.
+Şu an UART üzerinde denenmekte olup aynı çekirdek kodun transport callback'leri değiştirilerek UDP gibi farklı ortamlara da taşınabilmesi amaçlanmaktadır.
 
 ### Basitlik
 
-Arayüz kasıtlı olarak küçük tutulmuştur.
-`Node::spin_once()` her döngüde çağrılır; gelen baytları işler ve timeout tick'lerini atar. Başka bir orkestrasyon gerekmez.
+Arayüzün kasıtlı olarak küçük tutulması hedeflenmektedir.
+`Node::spin_once()` her döngüde çağrılır; gelen baytları işler ve timeout tick'lerini atar.
 
 ---
 
@@ -89,7 +89,7 @@ Arayüz kasıtlı olarak küçük tutulmuştur.
 - **HEADER**: `{0x6D, 0x72, 0x6F, 0x73}` (`mros`) — senkronizasyon
 - **LEN**: DATA uzunluğu (3–249)
 - **CRC**: CRC-8/SMBUS, DATA alanının tamamı üzerinden (CH_ID + SEQ + PAYLOAD)
-- Wire formatı little-endian; host dönüşümü `utils/endian.hpp` ile otomatik
+- Wire formatı little-endian; host dönüşümü `utils/endian.hpp` ile yönetilmektedir
 
 ---
 
@@ -107,7 +107,7 @@ Arayüz kasıtlı olarak küçük tutulmuştur.
 1. `spin_once()` → `Transport::get_size` + `Transport::read_bytes` ile baytlar parser buffer'ına alınır (zero-copy).
 2. `Parser::commit(n)` durum makinesini çalıştırır; frame tamamlanınca broker tetiklenir.
 3. `Broker`, `CH_ID` üzerinden ilgili subscriber callback'ini çağırır.
-4. Reliable abonelikte duplicate kontrolü ve ACK gönderimi otomatiktir.
+4. Reliable abonelikte duplicate kontrolü ve ACK gönderimi otomatik olarak gerçekleştirilmektedir.
 
 ---
 
@@ -154,9 +154,9 @@ void loop() {
 
 ### Opsiyonel keşif katmanı
 
-İkili (binary) protokol olmasına karşın birden fazla cihazın birbirini tanıyıp mesajlaşabilmesi için bir keşif mekanizması planlanmaktadır.
-Her düğüm yayınladığı/abone olduğu kanalları ve mesaj tiplerini duyurabilecek; bir merkez düğüm (MQTT broker benzeri) bu bilgileri toplayarak çok-noktaya yönlendirme yapabilecektir.
-Bu özellik opsiyonel olacak ve mevcut çekirdeğe dokunmayacaktır.
+İkili (binary) protokol olmasına karşın birden fazla cihazın birbirini tanıyıp mesajlaşabilmesi için opsiyonel bir keşif mekanizması eklemek hedeflenmektedir.
+Her düğümün yayınladığı/abone olduğu kanalları ve mesaj tiplerini duyurabilmesi; bir merkez düğümün (MQTT broker benzeri) bu bilgileri toplayarak çok-noktaya yönlendirme yapabilmesi planlanmaktadır.
+Bu özelliğin mevcut çekirdeğe dokunmadan opsiyonel olarak eklenmesi amaçlanmaktadır.
 
 ### Diğer
 
