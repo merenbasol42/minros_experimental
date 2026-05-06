@@ -1,5 +1,5 @@
 #pragma once
 
-#include "./delegate.hpp"
+#include "delegate.hpp"
+#include "types.hpp"
 #include "./endian.hpp"
-#include "./int.hpp"

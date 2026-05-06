@@ -1,6 +1,6 @@
 #pragma once
 
-#include "minros/utils/int.hpp"
+#include "minros/utils/utils.hpp"
 
 namespace minros::core::wireframe {
 

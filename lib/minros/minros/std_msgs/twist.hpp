@@ -22,8 +22,8 @@ struct Twist : MsgBase<Twist> {
 
 private:
     void deserialize(const u8* buf) noexcept {
-        linear.from_bytes(buf,                  Vector3::SIZE);
-        angular.from_bytes(buf + Vector3::SIZE, Vector3::SIZE);
+        (void)linear.from_bytes(buf,                  Vector3::SIZE);
+        (void)angular.from_bytes(buf + Vector3::SIZE, Vector3::SIZE);
     }
 
     void serialize(u8* buf) const noexcept {

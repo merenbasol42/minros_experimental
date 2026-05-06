@@ -34,8 +34,8 @@ namespace minros::core {
             CRC_MISMATCH,
         };
 
-        using FrameCallback = utils::delegate<u8*, u8, u8>;
-        using ErrorCallback = utils::delegate<Error>;
+        using FrameCallback = delegate<void, u8*, u8, u8>;
+        using ErrorCallback = delegate<void, Error>;
 
         struct Slice { u8* data; u8 size; };
 

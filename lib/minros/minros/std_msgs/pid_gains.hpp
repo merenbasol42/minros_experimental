@@ -1,7 +1,6 @@
 #pragma once
 #include <cstring>
 #include "msg_base.hpp"
-#include <minros/utils/endian.hpp>
 
 namespace minros::std_msgs {
 

@@ -54,19 +54,19 @@ public:
     // ── delegate türleri ──────────────────────────────────────────────────────
 
     // Broker ChannelCallback ile aynı imza: fn(seq, payload, len, ctx)
-    using ChannelCallback = utils::delegate<u8, u8*, u8>;
+    using ChannelCallback = delegate<void, u8, u8*, u8>;
 
     // Sadece ACK frame'leri göndermek için: fn(ch_id, seq, payload, len, ctx)
     // Kullanıcı veri frame'leri Publisher tarafından gönderilir — buradan değil.
-    using AckSendCallback = utils::delegate<u8, u8, u8*, u8>;
+    using AckSendCallback = delegate<void, u8, u8, u8*, u8>;
 
     // fn(ch_id, seq, ctx) — timeout olunca çağrılır.
     // Kullanıcı bu callback içinde Publisher::publish'i tekrar çağırır.
     // acquire_seq retransmit modunda aynı seq'i verir, seq artırmaz.
-    using RetransmitCallback = utils::delegate<void, u8, u8>;
+    using RetransmitCallback = delegate<void, u8, u8>;
 
     // fn(ch_id, seq, err_code, ctx)
-    using ErrorCallback = utils::delegate<u8, u8, ErrorCode>;
+    using ErrorCallback = delegate<void, u8, u8, ErrorCode>;
 
 
     // ── Yapılandırma ──────────────────────────────────────────────────────────
@@ -258,8 +258,8 @@ private:
         u8 acked_type = payload[0];
         u8 acked_ch   = payload[1];
         u8 acked_seq  = payload[2];
-        
-        if (acked_type != static_cast<u8>(protocol::ResponseType::ACK)) {return;}
+
+        if (acked_type != static_cast<u8>(protocol::ResponseType::ACK)) { return; }
 
         PubEntry* p = self->find_pub(acked_ch);
         if (p && p->seq == acked_seq) {

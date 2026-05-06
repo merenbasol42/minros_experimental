@@ -9,10 +9,10 @@
 namespace minros {
 
     struct Transport {
-        utils::delegate<void, u8*, u8> send_bytes;
-        utils::delegate<void, u8*, u8> read_bytes;
-        utils::delegate<u8>            get_size;
-        utils::delegate<u32>           get_time;
+        delegate<void, u8*, u8> send_bytes;
+        delegate<void, u8*, u8> read_bytes;
+        delegate<u8>            get_size;
+        delegate<u32>           get_time;
     };
 
 
