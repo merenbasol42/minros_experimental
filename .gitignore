@@ -1,4 +1,2 @@
-.pio/
-.vscode/
-.old/
-.claude/
+**/.**/
+**/__pycache__/
