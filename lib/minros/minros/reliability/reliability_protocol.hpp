@@ -11,14 +11,17 @@ namespace minros::reliability::protocol {
     };
     
     /*
-    Mesaj Tanımı {
-        RESP  : 1 byte = '0x06' (response tipi, ASCII ACK) 
-        CH_ID : 1 byte (Kanal ID'si) 
-        SEQ   : 1 byte (Mesajın sequence numarası)
+    Reliable veri frame'i (CH_ID = kullanıcı kanalı):
+        PAYLOAD = [SEQ(1)][user bytes...]
+        SEQ, Reliable katmanının payload'a koyduğu opak önek; core bunu bilmez.
+
+    ACK frame'i (CH_ID = ACK_CHANNEL_ID, payload):
+        RESP  : 1 byte = 0x06 (response tipi, ASCII ACK)
+        CH_ID : 1 byte (ACK'lenen kanal)
+        SEQ   : 1 byte (ACK'lenen sequence numarası)
 
         RESP alanı neden var ?
-        aslında zaten sadece ACK gönderiliyor NACK yok ama belki ilerleyen zamanlarda eklenir diye bunun için 
-    }
+        şu an sadece ACK var, NACK yok; ileride eklenebilsin diye ayrıldı.
     */
 
     constexpr u8 ACK_CHANNEL_ID = 249;
