@@ -88,7 +88,7 @@ namespace minros::core {
                     break;
 
                 case State::LENGTH_WAIT:
-                    // DATA en az SEQ(1) + CH_ID(1) = MIN_DATA_LEN byte olmalı
+                    // DATA en az CH_ID(1) + MIN_PAYLOAD(1) = MIN_DATA_LEN byte olmalı
                     if (byte < wireframe::MIN_DATA_LEN || byte > MAX_DATA) {
                         on_error(Error::INVALID_LENGTH);
                         parse_pos++;  // geçersiz length baytını tüket

@@ -8,11 +8,13 @@ namespace minros::core {
     //
     // Frame DATA layout:
     //   CH_ID  : 1 byte       (arr[from+0])                     -> kanal kimliği
-    //   SEQ    : 1 byte       (arr[from+1])                     -> sıra numarası
-    //   PAYLOAD: size-2 bytes (arr[from+2] .. arr[from+size-1]) -> asıl veri
+    //   PAYLOAD: size-1 bytes (arr[from+1] .. arr[from+size-1]) -> asıl veri
+    //
+    // Not: core SEQ bilmez. Reliability seq'i payload'ın ilk baytında taşır ve
+    //      kendi subscriber wrapper'ında ayıklar — broker bunu opak veri görür.
     //
     // Template parametre:
-    //   MAX_SUBS — maksimum eş zamanlı abonelik sayısı (varsayılan 32)
+    //   MAX_SUBS — maksimum eş zamanlı abonelik sayısı (varsayılan 16)
     //              Küçük MCU'larda 4-8 arası yeterli olabilir; her slot
     //              ARM32'de 12 byte RAM tutar.
     //
@@ -24,8 +26,8 @@ namespace minros::core {
     template<u8 MAX_SUBS = 16>
     class Broker {
     public:
-        // fn(seq, payload, payload_len, ctx)
-        using ChannelCallback = delegate<void, u8, u8*, u8>;
+        // fn(payload, payload_len, ctx)
+        using ChannelCallback = delegate<void, u8*, u8>;
 
         // CH_ID'ye callback kaydet
         bool subscribe(u8 ch_id, ChannelCallback cb) {
@@ -38,13 +40,12 @@ namespace minros::core {
         void on_frame_completed(u8* arr, u8 from, u8 size) {
 
             u8  ch_id    = arr[from];       // DATA[0] = CH_ID
-            u8  seq      = arr[from + 1];   // DATA[1] = SEQ
-            u8* payload  = arr + from + 2;  // DATA[2..] = kullanıcı verisi
-            u8  pay_len  = size - 2u;       // CH_ID + SEQ çıkarıldı
+            u8* payload  = arr + from + 1;  // DATA[1..] = kullanıcı verisi
+            u8  pay_len  = size - 1u;       // CH_ID çıkarıldı
 
             for (u8 i = 0; i < sub_count; i++) {
                 if (subs[i].ch_id == ch_id && subs[i].cb.is_valid()) {
-                    subs[i].cb(seq, payload, pay_len);
+                    subs[i].cb(payload, pay_len);
                 }
             }
         }

@@ -12,9 +12,11 @@ namespace minros::core::wireframe {
     //      LEN          : DATA uzunluğu (2..249)
     //      DATA         : DATA (LEN kadar)
     //          CH_ID    : DATA[0] — kanal kimliği
-    //          SEQ      : DATA[1] — gönderici sıra numarası
-    //          PAYLOAD  : DATA[2..LEN-1] — kullanıcı verisi (0..247 byte)    
+    //          PAYLOAD  : DATA[1..LEN-1] — kullanıcı verisi (1..248 byte)
     //      CRC          : CRC-8/SMBUS (poly=0x07, init=0x00) — DATA byte'ları üzerinden
+    //
+    //  Not: core katmanı SEQ bilmez. Güvenilirlik (reliability) katmanı, kendi
+    //       sıra numarasını PAYLOAD'ın önüne opak bir baytlık önek olarak koyar.
     //
     //
     //  Endianness: wire formatı little-endian. std_msgs katmanı dönüşümü
@@ -27,9 +29,9 @@ namespace minros::core::wireframe {
     // DATA alanı sınırları
     // BUFFER_SIZE = HEADER(4) + LEN(1) + DATA(249) + CRC(1) = 255 (u8 max)
     constexpr u8 MAX_DATA_LEN  = 249u;
-    constexpr u8 MAX_PAYLOAD   = MAX_DATA_LEN - 2;  // 247 byte
+    constexpr u8 MAX_PAYLOAD   = MAX_DATA_LEN - 1;  // 248 byte (CH_ID çıkarıldı)
     constexpr u8 MIN_PAYLOAD   = 1u;
-    constexpr u8 MIN_DATA_LEN  = 2u + MIN_PAYLOAD;    // en az SEQ(1) + CH_ID(1) + MIN_PAYLOAD 
+    constexpr u8 MIN_DATA_LEN  = 1u + MIN_PAYLOAD;   // en az CH_ID(1) + MIN_PAYLOAD
 
     // ── CRC-8/SMBUS ───────────────────────────────────────────────────────────
     // Polinom: 0x07, Init: 0x00, XOR-out: 0x00
