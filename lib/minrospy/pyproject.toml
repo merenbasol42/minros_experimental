@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "minrospy"
+version = "0.1.0"
+description = "minros gömülü mesajlaşma protokolünün Python portu (pub/sub, reliability, std_msgs)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Mustafa Eren BAŞOL" }]
+keywords = ["minros", "ros", "serial", "embedded", "pubsub", "robotics"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["minrospy*"]
