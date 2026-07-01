@@ -15,17 +15,17 @@ Tüm nesneler derleme zamanında boyutu bilinen statik buffer'larda tutulmakta; 
 ### Template parametreleriyle kaynak kontrolü
 
 Statik buffer'lar sabit boyutlu olduğundan farklı projeler farklı miktarda RAM ayırır.
-`Node`, `Parser`, `Framer`, `Reliable` ve `NodeHL` template parametreleriyle proje ihtiyacına göre ayarlanabilmektedir:
+`RawNode`, `Parser`, `Framer`, `Reliable` ve `Node` template parametreleriyle proje ihtiyacına göre ayarlanabilmektedir:
 
 ```cpp
 // Saf transport: 4 abone, 32 byte'lık frame
-minros::Node</*MAX_SUBS=*/4, /*MAX_FRAME_DATA=*/32> node;
+minros::RawNode</*MAX_SUBS=*/4, /*MAX_FRAME_DATA=*/32> node;
 
 // Güvenilirlik overlay'i: 2 reliable publisher + 2 reliable subscriber kanalı
 minros::reliability::Reliable</*MAX_PUB=*/2, /*MAX_SUB=*/2> rel{node};
 
 // Tipli yüksek seviye: 4 abone, 32 byte frame, 2 reliable kanal
-minros::NodeHL</*MAX_SUBS=*/4, /*MAX_FRAME_DATA=*/32, /*MAX_RELIABLE=*/2> hl;
+minros::Node</*MAX_SUBS=*/4, /*MAX_FRAME_DATA=*/32, /*MAX_RELIABLE=*/2> hl;
 ```
 
 ### Donanımdan bağımsızlık
@@ -47,24 +47,24 @@ node.transport = {
 ### Basitlik
 
 Arayüzün kasıtlı olarak küçük tutulması hedeflenmektedir.
-`Node::spin_once()` her döngüde çağrılır; gelen baytları işler. Güvenilirlik
+`RawNode::spin_once()` her döngüde çağrılır; gelen baytları işler. Güvenilirlik
 kullanılıyorsa ayrıca `Reliable::tick()` çağrılarak timeout/retransmit yürütülür
-(`NodeHL::spin_once()` ikisini birlikte yapar).
+(`Node::spin_once()` ikisini birlikte yapar).
 
 ---
 
 ## Mimari
 
 ```
-┌──────────────────────────────────────────────┐
-│   NodeHL (tipli)   ← Node + Reliable sarmalar  │  ← yüksek seviye facade
+┌────────────────────────────────────────────────┐
+│  Node (tipli)  ←  RawNode + Reliable sarmalar    │  ← yüksek seviye facade
 └───────────────┬────────────────────────────────┘
                 │ kullanır (public API)
 ┌───────────────▼─────────┐     ┌──────────────────────────────┐
-│  Node (saf ham byte)    │◄────│  Reliable (overlay)          │
+│  RawNode (ham byte)     │◄────│  Reliable (overlay)          │
 │  publish / subscribe    │     │  seq / ACK / retransmit /    │
-│  spin_once()            │     │  duplicate — Node'un sıradan  │
-└────┬──────────────┬─────┘     │  bir kullanıcısı (CH249)     │
+│  spin_once()            │     │  duplicate — RawNode'un      │
+└────┬──────────────┬─────┘     │  sıradan kullanıcısı (CH249) │
      │              │           └──────────────────────────────┘
   Gönderim       Alım
      │              │
@@ -73,10 +73,10 @@ kullanılıyorsa ayrıca `Reliable::tick()` çağrılarak timeout/retransmit yü
   Transport (kullanıcı sağlar)
 ```
 
-Core (`wireframe`/`framer`/`parser`/`broker`) ve `Node` güvenilirlikten habersizdir;
-seq diye bir wire alanı yoktur. `Reliable`, Node'un public `publish`/`subscribe`
+Core (`wireframe`/`framer`/`parser`/`broker`) ve `RawNode` güvenilirlikten habersizdir;
+seq diye bir wire alanı yoktur. `Reliable`, RawNode'un public `publish`/`subscribe`
 API'sini kullanan bağımsız bir overlay'dir: seq'i payload önekine koyar, ACK'i
-normal bir kanaldan (CH249) yollar. `NodeHL` gerektirmez — ham `Node` ile de kullanılır.
+normal bir kanaldan (CH249) yollar. `Node` gerektirmez — ham `RawNode` ile de kullanılır.
 
 ### Katmanlar
 
@@ -86,9 +86,9 @@ normal bir kanaldan (CH249) yollar. `NodeHL` gerektirmez — ham `Node` ile de k
 | `core/framer.hpp` | Payload → wire frame dönüşümü (opak head öneki destekli) |
 | `core/parser.hpp` | Byte stream → frame (durum makinesi) |
 | `core/broker.hpp` | CH_ID bazında callback yönlendirme |
-| `node.hpp` | Core'u birleştiren saf ham byte API (`Node`) |
-| `reliability/reliable.hpp` | seq/ACK/retransmit/duplicate — Node üzerine overlay (`Reliable`) |
-| `node_hl.hpp` | `Node` + `Reliable` üzerine tipli yüksek seviye sarmalayıcı (`NodeHL`) |
+| `raw_node.hpp` | Core'u birleştiren saf ham byte API (`RawNode`) |
+| `reliability/reliable.hpp` | seq/ACK/retransmit/duplicate — RawNode üzerine overlay (`Reliable`) |
+| `node.hpp` | `RawNode` + `Reliable` üzerine tipli yüksek seviye sarmalayıcı (`Node`) |
 | `std_msgs/` | CRTP tabanlı sabit boyutlu mesaj tipleri |
 
 ---
@@ -136,17 +136,17 @@ normal bir kanaldan (CH249) yollar. `NodeHL` gerektirmez — ham `Node` ile de k
 
 ## Kullanım
 
-İki kullanım seviyesi vardır. `NodeHL` tipli mesajlarla (serialize/deserialize otomatik)
-çalışan yüksek seviye sarmalayıcıdır; `Node` ise doğrudan ham byte ile çalışan çekirdektir.
-`NodeHL` kullanmak zorunlu değildir — `Node` tek başına oluşturulabilir.
+İki kullanım seviyesi vardır. `Node` tipli mesajlarla (serialize/deserialize otomatik)
+çalışan yüksek seviye sarmalayıcıdır; `RawNode` ise doğrudan ham byte ile çalışan çekirdektir.
+`Node` kullanmak zorunlu değildir — `RawNode` tek başına oluşturulabilir.
 
-### Yüksek seviye — `NodeHL` (tipli)
+### Yüksek seviye — `Node` (tipli)
 
 ```cpp
-#include <minros/node_hl.hpp>
+#include <minros/node.hpp>
 #include <minros/std_msgs/twist.hpp>
 
-minros::NodeHL<> node;
+minros::Node<> node;
 
 // Transport bağla
 node.transport = { ... };
@@ -170,16 +170,16 @@ void loop() {
 }
 ```
 
-### Düşük seviye — `Node` (ham byte)
+### Düşük seviye — `RawNode` (ham byte)
 
-`Node` tek başına yeterlidir; tipli katmana ihtiyaç yoksa doğrudan kullanılabilir.
+`RawNode` tek başına yeterlidir; tipli katmana ihtiyaç yoksa doğrudan kullanılabilir.
 Serileştirme/deserileştirme tamamen kullanıcıya aittir.
 
 ```cpp
-#include <minros/node.hpp>
+#include <minros/raw_node.hpp>
 #include <minros/reliability/reliable.hpp>
 
-minros::Node<> node;
+minros::RawNode<> node;
 minros::reliability::Reliable rel{node};   // overlay'i node'a tak (CTAD)
 
 // Transport bağla
@@ -211,7 +211,7 @@ void loop() {
 }
 ```
 
-> `NodeHL`, içte bir `Node` + `Reliable` tutar ve `to_bytes()` / `from_bytes()`
+> `Node`, içte bir `RawNode` + `Reliable` tutar ve `to_bytes()` / `from_bytes()`
 > çağrılarını bu ham API üzerine ekler; reliable publisher buffer'ını da kendi
 > yönetir. İki seviye aynı wire protokolünü paylaşır; karışık kullanılabilir.
 

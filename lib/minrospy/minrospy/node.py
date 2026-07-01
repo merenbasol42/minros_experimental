@@ -1,86 +1,114 @@
-"""Node — saf ham byte datagram API (kanal bazlı publish/subscribe).
+"""Node — yüksek seviye tipli API (RawNode + reliability.Reliable sarmalayıcı).
 
-Reliability'den habersizdir. Güvenilirlik isteyen, bu Node'un public API'sini
-kullanan reliability.Reliable overlay'ini takar (bkz. reliability/reliable.py).
-
-Transport, 4 callable tutar:
-    send_bytes(data: bytes) -> None    — frame'i fiziksel kanala yazar
-    read_bytes(n: int) -> bytes        — en fazla n byte okur
-    get_size() -> int                  — okunmaya hazır byte sayısı
-    get_time() -> int                  — milisaniye cinsinden zaman
+Subscriber callback'leri doğrudan tipli mesaj alır, deserializasyon otomatiktir.
+İçte bir RawNode (saf ham byte) ve bir Reliable (overlay) tutar; C++ Node'in portu.
+Reliable retransmit otonomdur — retransmit_cb gerekmez.
 
 Kullanım:
     node = Node()
-    node.transport = Transport(send_bytes=..., read_bytes=..., get_size=..., get_time=...)
+    node.transport = Transport(...)
 
-    node.subscribe(ch_id, lambda payload: ...)   # fn(payload)
-    node.publish(ch_id, data)                     # ham payload
-    node.publish(ch_id, data, head=bytes([seq]))  # opak head önekli (layered)
+    # Publisher
+    pub = node.create_publisher(Twist, ch_id)
+    pub.publish(msg)
+
+    # Subscriber — callback tipli mesaj alır
+    node.create_subscription(Twist, ch_id, lambda msg: ...)
+
+    # Güvenilir publisher — buffer'ı Reliable kendi içinde tutar
+    pub = node.create_publisher(Twist, ch_id, reliable=True)
+    if not pub.publish(msg):
+        ...  # önceki hâlâ uçuşta (ACK bekleniyor), sonra dene
+
+    # Güvenilir subscriber
+    node.create_subscription(Twist, ch_id, lambda msg: ..., reliable=True)
 
     node.spin_once()   # ana döngüde
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass
 
 from .core import wireframe
-from .core.broker import Broker, ChannelCallback
-from .core.framer import Framer
-from .core.parser import Parser
+from .raw_node import RawNode, Transport
+from .reliability.reliable import Reliable
 
 
-@dataclass
-class Transport:
-    send_bytes: Callable[[bytes], None] | None = None
-    read_bytes: Callable[[int], bytes] | None = None
-    get_size: Callable[[], int] | None = None
-    get_time: Callable[[], int] | None = None
+class Publisher:
+    """create_publisher() tarafından döndürülür; veri tutmaz (Reliable tutar)."""
+
+    def __init__(self, hl: "Node", msg_type: type, ch_id: int, reliable: bool):
+        self._hl = hl
+        self._msg_type = msg_type
+        self._ch_id = ch_id
+        self._reliable = reliable
+
+    def publish(self, msg) -> bool:
+        if self._hl is None:
+            return False
+        buf = msg.to_bytes()
+        if self._reliable:
+            return self._hl._reliable.publish(self._ch_id, buf)
+        return self._hl._node.publish(self._ch_id, buf)
+
+    def is_valid(self) -> bool:
+        return self._hl is not None
 
 
 class Node:
-    def __init__(self, max_frame_data: int = wireframe.MAX_DATA_LEN):
-        self.transport = Transport()
+    def __init__(
+        self,
+        max_frame_data: int = wireframe.MAX_DATA_LEN,
+        max_retry: int = 3,
+        timeout_ms: int = 50,
+    ):
+        self._node = RawNode(max_frame_data)
+        self._reliable = Reliable(self._node, max_retry=max_retry, timeout_ms=timeout_ms)
 
-        self._parser = Parser(max_frame_data)
-        self._broker = Broker()
-        self._framer = Framer(max_frame_data)
+    # transport doğrudan alttaki RawNode'a yönlendirilir
+    @property
+    def transport(self) -> Transport:
+        return self._node.transport
 
-        self._parser.on_frame_completed = self._broker.on_frame_completed
-
-    # ── Ana döngü ──────────────────────────────────────────────────────────
+    @transport.setter
+    def transport(self, t: Transport) -> None:
+        self._node.transport = t
 
     def spin_once(self) -> None:
-        self._feed_parser()
+        self._node.spin_once()
+        self._reliable.tick()
 
-    # ── Yayınlama ──────────────────────────────────────────────────────────
+    def create_publisher(
+        self,
+        msg_type: type,
+        ch_id: int,
+        reliable: bool = False,
+    ) -> Publisher | None:
+        """reliable=True ise güvenilir publisher kanalı kaydedilir.
 
-    def publish(self, ch_id: int, payload: bytes, head: bytes = b"") -> bool:
-        """Ham payload gönder. `head` verilirse opak bir önek olarak eklenir
-        (layered protokoller için, örn. reliability seq baytı). Core head'in
-        anlamını bilmez; tele CH_ID + head + payload olarak girer.
+        Retransmit otonomdur — kullanıcı callback'i gerekmez. Slot doluysa
+        (MAX_PUB aşıldıysa) None döner.
         """
-        if self.transport.send_bytes is None:
+        if reliable and not self._reliable.register_pub(ch_id):
+            return None
+        return Publisher(self, msg_type, ch_id, reliable)
+
+    def create_subscription(
+        self,
+        msg_type: type,
+        ch_id: int,
+        cb: Callable[[object], None],
+        reliable: bool = False,
+    ) -> bool:
+        """cb imzası: fn(msg) — msg, msg_type örneğidir."""
+        if cb is None:
             return False
-        frame = self._framer.build(ch_id, payload, head)
-        if frame is None:
-            return False
-        self.transport.send_bytes(frame)
-        return True
 
-    # ── Abonelik ───────────────────────────────────────────────────────────
+        def adapter(payload: bytes) -> None:
+            msg = msg_type.from_bytes(payload)
+            if msg is None:
+                return
+            cb(msg)
 
-    def subscribe(self, ch_id: int, cb: ChannelCallback) -> bool:
-        """CH_ID'ye callback kaydeder. cb imzası: fn(payload)."""
-        return self._broker.subscribe(ch_id, cb)
-
-    # ── İç yardımcılar ─────────────────────────────────────────────────────
-
-    def _feed_parser(self) -> None:
-        if self.transport.get_size is None or self.transport.read_bytes is None:
-            return
-        n = self.transport.get_size()
-        if n <= 0:
-            return
-        data = self.transport.read_bytes(n)
-        if data:
-            self._parser.feed(data)
+        if reliable:
+            return self._reliable.subscribe(ch_id, adapter)
+        return self._node.subscribe(ch_id, adapter)

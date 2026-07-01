@@ -11,7 +11,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from minrospy import Node, NodeHL, Reliable, Transport
+from minrospy import RawNode, Node, Reliable, Transport
 from minrospy.core import wireframe
 from minrospy.core.framer import Framer
 from minrospy.core.parser import Parser
@@ -119,12 +119,12 @@ def test_message_from_bytes_too_short():
     assert Float32.from_bytes(b"\x00\x00") is None
 
 
-# ── Node (düşük seviye, saf ham byte) ────────────────────────────────────────
+# ── RawNode (düşük seviye, saf ham byte) ────────────────────────────────────────
 
 
 def test_node_publish_subscribe():
     lb = Loopback()
-    node = Node()
+    node = RawNode()
     node.transport = lb.transport()
 
     received = []
@@ -135,12 +135,12 @@ def test_node_publish_subscribe():
     assert received == [b"\xde\xad"]
 
 
-# ── NodeHL (tipli) ───────────────────────────────────────────────────────────
+# ── Node (tipli) ───────────────────────────────────────────────────────────
 
 
-def test_node_hl_typed():
+def test_node_typed():
     lb = Loopback()
-    node = NodeHL()
+    node = Node()
     node.transport = lb.transport()
 
     received = []
@@ -161,7 +161,7 @@ def test_reliable_ack_clears_pending():
     lb_a2b = Loopback()  # A -> B
     lb_b2a = Loopback()  # B -> A
 
-    node_a = Node()
+    node_a = RawNode()
     node_a.transport = Transport(
         send_bytes=lb_a2b.send_bytes,
         read_bytes=lb_b2a.read_bytes,
@@ -170,7 +170,7 @@ def test_reliable_ack_clears_pending():
     )
     rel_a = Reliable(node_a)
 
-    node_b = Node()
+    node_b = RawNode()
     node_b.transport = Transport(
         send_bytes=lb_b2a.send_bytes,
         read_bytes=lb_a2b.read_bytes,
@@ -194,7 +194,7 @@ def test_reliable_ack_clears_pending():
 def test_reliable_blocks_until_ack():
     """ACK gelmeden ikinci publish reddedilmeli."""
     lb = Loopback()
-    node = Node()
+    node = RawNode()
     node.transport = lb.transport()
     rel = Reliable(node)
 
@@ -207,7 +207,7 @@ def test_reliable_retransmit_on_timeout():
     """Timeout aşılınca tick() aynı payload'ı otonom yeniden gönderir."""
     lb = Loopback()
     clock = {"t": 0}
-    node = Node()
+    node = RawNode()
     node.transport = Transport(
         send_bytes=lb.send_bytes,
         read_bytes=lb.read_bytes,

@@ -6,9 +6,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Reliable — minros güvenilirlik (reliability) overlay'i
 //
-// Node'un public pub/sub API'sini kullanan bağımsız bir kullanıcıdır. Core'a
+// RawNode'un public pub/sub API'sini kullanan bağımsız bir kullanıcıdır. Core'a
 // hiçbir şey eklemez: seq'i, payload'ın önüne opak bir baytlık önek olarak koyar
-// ve ACK'i normal bir kanaldan (CH249) yollar. NodeHL gerektirmez — ham Node ile
+// ve ACK'i normal bir kanaldan (CH249) yollar. Node gerektirmez — ham RawNode ile
 // de kullanılabilir.
 //
 // Stop-and-wait (window = 1): kanal başına aynı anda en fazla 1 uçuştaki frame.
@@ -20,7 +20,7 @@
 //   true olana) kadar buf bozulmamalıdır — Reliable yalnızca pointer'ını tutar.
 //
 // Kullanım:
-//   Node<> node;
+//   RawNode<> node;
 //   reliability::Reliable rel{node};         // node'a takılır, ACK kanalına abone olur
 //
 //   rel.subscribe(ch, {on_data, ctx});       // fn(payload, len, ctx) — seq/dedup/ACK gizli
@@ -202,7 +202,7 @@ private:
     }
 
 
-    // ── Statik köprüler (Node ChannelCallback imzası: fn(payload, len, ctx)) ──
+    // ── Statik köprüler (RawNode ChannelCallback imzası: fn(payload, len, ctx)) ──
 
     // Güvenilir subscriber: seq ayıkla → ACK at → dedup → kullanıcı cb.
     static void rx_thunk(u8* payload, u8 len, void* ctx) {

@@ -9,8 +9,8 @@ haberleşebilir.
 ## Mimari
 
 C++ kütüphanesinin katmanları korunmuştur. Core (wireframe/framer/parser/broker)
-ve `Node` güvenilirlikten **habersizdir**; seq diye bir wire alanı yoktur.
-`Reliable`, Node'un public pub/sub API'sini kullanan bağımsız bir **overlay**'dir:
+ve `RawNode` güvenilirlikten **habersizdir**; seq diye bir wire alanı yoktur.
+`Reliable`, RawNode'un public pub/sub API'sini kullanan bağımsız bir **overlay**'dir:
 seq'i payload'ın önüne opak bir önek olarak koyar, ACK'i normal bir kanaldan
 (CH249) yollar.
 
@@ -20,9 +20,9 @@ seq'i payload'ın önüne opak bir önek olarak koyar, ACK'i normal bir kanaldan
 | Framer | [`core/framer.py`](minrospy/core/framer.py) | Payload → wire frame (opak head önekli) |
 | Parser | [`core/parser.py`](minrospy/core/parser.py) | Byte akışı → frame (durum makinesi) |
 | Broker | [`core/broker.py`](minrospy/core/broker.py) | CH_ID bazında dağıtım |
-| Node | [`node.py`](minrospy/node.py) | Saf ham byte API (reliability'den habersiz) |
-| Reliable | [`reliability/reliable.py`](minrospy/reliability/reliable.py) | seq / ACK / retransmit / dedup — Node üzerine overlay |
-| NodeHL | [`node_hl.py`](minrospy/node_hl.py) | Node + Reliable üzerine tipli yüksek seviye sarmalayıcı |
+| RawNode | [`raw_node.py`](minrospy/raw_node.py) | Saf ham byte API (reliability'den habersiz) |
+| Reliable | [`reliability/reliable.py`](minrospy/reliability/reliable.py) | seq / ACK / retransmit / dedup — RawNode üzerine overlay |
+| Node | [`node.py`](minrospy/node.py) | RawNode + Reliable üzerine tipli yüksek seviye sarmalayıcı |
 | std_msgs | [`std_msgs/`](minrospy/std_msgs) | Float32, Vector3, Twist, … |
 
 ## Frame formatı
@@ -54,10 +54,10 @@ Transport(
 ## Kullanım — tipli API
 
 ```python
-from minrospy import NodeHL, Transport
+from minrospy import Node, Transport
 from minrospy.std_msgs import Twist, Vector3
 
-node = NodeHL()
+node = Node()
 node.transport = Transport(send_bytes=..., read_bytes=..., get_size=..., get_time=...)
 
 # Publisher
@@ -81,12 +81,12 @@ while True:
 
 ## Kullanım — düşük seviye API
 
-`Node` saf ham byte transporttur; güvenilirlik isteyen `Reliable` overlay'ini takar.
+`RawNode` saf ham byte transporttur; güvenilirlik isteyen `Reliable` overlay'ini takar.
 
 ```python
-from minrospy import Node, Reliable, Transport
+from minrospy import RawNode, Reliable, Transport
 
-node = Node()
+node = RawNode()
 node.transport = Transport(...)
 
 # Unreliable — callback ham payload alır
@@ -108,11 +108,11 @@ while True:
 
 ```python
 import time, serial
-from minrospy import NodeHL, Transport
+from minrospy import Node, Transport
 from minrospy.std_msgs import Float32
 
 ser = serial.Serial("/dev/ttyUSB0", 115200, timeout=0)
-node = NodeHL()
+node = Node()
 node.transport = Transport(
     send_bytes=ser.write,
     read_bytes=ser.read,

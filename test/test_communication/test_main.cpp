@@ -1,6 +1,6 @@
 // ─── minros haberleşme testi ──────────────────────────────────────────────────
 //
-// Strateji: İki NodeHL<> arasına BytePipe loopback transport bağlanır.
+// Strateji: İki Node<> arasına BytePipe loopback transport bağlanır.
 //   node_a  --[a_to_b]--> node_b   (mesaj)
 //   node_b  --[b_to_a]--> node_a   (ACK)
 //
@@ -8,14 +8,14 @@
 // Test 2 — Twist reliable:      pub.publish() → node_b.spin_once() (callback+ACK)
 //                                             → node_a.spin_once() (ACK alındı)
 //
-// Reliability artık NodeHL'in içindeki reliability::Reliable overlay'i tarafından
+// Reliability artık Node'in içindeki reliability::Reliable overlay'i tarafından
 // yönetilir; retransmit otonomdur (callback yok), buffer'ı Publisher kendi tutar.
 // ─────────────────────────────────────────────────────────────────────────────
 
 #include <unity.h>
 #include <cstdint>
 
-#include <minros/node_hl.hpp>
+#include <minros/node.hpp>
 #include <minros/std_msgs/primitives.hpp>
 #include <minros/std_msgs/twist.hpp>
 
@@ -49,7 +49,7 @@ static uint8_t pipe_avail(void* ctx)                        { return static_cast
 static uint32_t fake_time(void*)                            { return 0; }
 
 // ─── Yardımcı: iki node'u çift yönlü bağla ───────────────────────────────────
-static void connect(minros::NodeHL<>& a, minros::NodeHL<>& b,
+static void connect(minros::Node<>& a, minros::Node<>& b,
                     BytePipe& a_to_b, BytePipe& b_to_a)
 {
     a.transport = {
@@ -90,7 +90,7 @@ void test_float32_best_effort()
     static BytePipe ab, ba;
     ab = {}; ba = {};
 
-    minros::NodeHL<> node_a, node_b;
+    minros::Node<> node_a, node_b;
     connect(node_a, node_b, ab, ba);
 
     auto pub = node_a.create_publisher<minros::std_msgs::Float32>(0x01);
@@ -128,7 +128,7 @@ void test_twist_reliable_with_ack()
     static BytePipe ab, ba;
     ab = {}; ba = {};
 
-    minros::NodeHL<> node_a, node_b;
+    minros::Node<> node_a, node_b;
     connect(node_a, node_b, ab, ba);
 
     auto pub = node_a.create_publisher<minros::std_msgs::Twist>(0x02, /*reliable=*/true);

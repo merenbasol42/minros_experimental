@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
+#include <minros/raw_node.hpp>
 #include <minros/node.hpp>
-#include <minros/node_hl.hpp>
 #include <minros/std_msgs/vector3.hpp>
 
 #define ENABLE_RAW_NODE    1
@@ -28,7 +28,7 @@ static minros::Transport serial_transport = {
 
 #if ENABLE_RAW_NODE
 
-static minros::Node<> raw_node;
+static minros::RawNode<> raw_node;
 
 static void on_raw_bytes(u8* payload, u8 /*len*/, void*) {
     auto a = (minros::std_msgs::Vector3*) payload;
@@ -50,8 +50,8 @@ static void on_raw_bytes(u8* payload, u8 /*len*/, void*) {
 
 #if ENABLE_HL_NODE
 
-static minros::NodeHL<> hl_node;
-static minros::NodeHL<>::Publisher<minros::std_msgs::Vector3> hl_pub;
+static minros::Node<> hl_node;
+static minros::Node<>::Publisher<minros::std_msgs::Vector3> hl_pub;
 
 static void on_vector3(const minros::std_msgs::Vector3& msg, void*) {
     minros::std_msgs::Vector3 out;
@@ -69,8 +69,8 @@ static void on_vector3(const minros::std_msgs::Vector3& msg, void*) {
 
 #if ENABLE_HL_REL_NODE
 
-static minros::NodeHL<> rel_node;
-static minros::NodeHL<>::Publisher<minros::std_msgs::Vector3> rel_pub;
+static minros::Node<> rel_node;
+static minros::Node<>::Publisher<minros::std_msgs::Vector3> rel_pub;
 
 // Retransmit otonomdur (Publisher buffer'ı kendi tutar); callback gerekmez.
 // can_send false ise önceki mesaj hâlâ uçuşta — bu turu atlarız.

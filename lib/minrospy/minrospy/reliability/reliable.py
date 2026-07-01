@@ -1,8 +1,8 @@
 """Reliable — minros güvenilirlik (reliability) overlay'i.
 
-Node'un public pub/sub API'sini kullanan bağımsız bir kullanıcıdır. Core'a
+RawNode'un public pub/sub API'sini kullanan bağımsız bir kullanıcıdır. Core'a
 hiçbir şey eklemez: seq'i, payload'ın önüne opak bir baytlık önek olarak koyar
-ve ACK'i normal bir kanaldan (CH249) yollar. NodeHL gerektirmez — ham Node ile
+ve ACK'i normal bir kanaldan (CH249) yollar. Node gerektirmez — ham RawNode ile
 de kullanılabilir. C++ tarafındaki reliability::Reliable overlay'inin portudur.
 
 Stop-and-wait (window = 1): kanal başına aynı anda en fazla 1 uçuştaki frame.
@@ -10,7 +10,7 @@ Timeout otonomdur: tick() tutulan payload'ı kendisi yeniden gönderir (retransm
 callback'i YOKTUR). Python'da bytes immutable olduğundan payload kopyası tutulur.
 
 Kullanım:
-    node = Node()
+    node = RawNode()
     rel = Reliable(node)                  # node'a takılır, ACK kanalına abone olur
 
     rel.subscribe(ch, lambda payload: ...)   # seq/dedup/ACK gizli

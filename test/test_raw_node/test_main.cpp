@@ -1,10 +1,10 @@
-// ─── minros düşük seviye Node + Reliable testi ────────────────────────────────
+// ─── minros düşük seviye RawNode + Reliable testi ────────────────────────────────
 //
-// Strateji: İki Node<> arasına BytePipe loopback transport bağlanır.
+// Strateji: İki RawNode<> arasına BytePipe loopback transport bağlanır.
 //   node_a  --[a_to_b]--> node_b   (mesaj)
 //   node_b  --[b_to_a]--> node_a   (ACK)
 //
-// Reliability artık Node'un içinde değil; Node'a takılan reliability::Reliable
+// Reliability artık RawNode'un içinde değil; RawNode'a takılan reliability::Reliable
 // overlay'idir. seq payload önekinde taşınır, retransmit pointer-tutma ile
 // otonomdur (retransmit callback yok).
 //
@@ -18,7 +18,7 @@
 #include <cstdint>
 #include <cstring>
 
-#include <minros/node.hpp>
+#include <minros/raw_node.hpp>
 #include <minros/reliability/reliable.hpp>
 
 // ─── BytePipe: sabit boyutlu döngüsel tampon ──────────────────────────────────
@@ -54,7 +54,7 @@ static void    pipe_recv (uint8_t* b, uint8_t n, void* ctx) { static_cast<BytePi
 static uint8_t pipe_avail(void* ctx)                        { return static_cast<BytePipe*>(ctx)->available(); }
 
 // ─── Yardımcı: iki node'u çift yönlü bağla ───────────────────────────────────
-static void connect(minros::Node<>& a, minros::Node<>& b,
+static void connect(minros::RawNode<>& a, minros::RawNode<>& b,
                     BytePipe& a_to_b, BytePipe& b_to_a)
 {
     a.transport = {
@@ -98,7 +98,7 @@ void test_unreliable_raw_bytes()
     static BytePipe ab, ba;
     ab = {}; ba = {};
 
-    minros::Node<> node_a, node_b;
+    minros::RawNode<> node_a, node_b;
     connect(node_a, node_b, ab, ba);
 
     node_b.subscribe(0x01, { t1_on_bytes, nullptr });
@@ -134,7 +134,7 @@ void test_reliable_ack_roundtrip()
     static BytePipe ab, ba;
     ab = {}; ba = {};
 
-    minros::Node<> node_a, node_b;
+    minros::RawNode<> node_a, node_b;
     connect(node_a, node_b, ab, ba);
 
     minros::reliability::Reliable rel_a{node_a};   // publisher tarafı (ACK alır)
@@ -182,7 +182,7 @@ void test_reliable_timeout_retransmit()
     static BytePipe sink;   // node_b → sink   (ACK; node_a okumaz)
     ab = {}; sink = {};
 
-    minros::Node<> node_a, node_b;
+    minros::RawNode<> node_a, node_b;
     node_a.transport = {
         .send_bytes = { pipe_send,   &ab },
         .read_bytes = { noop_recv,   nullptr },   // hiç okumaz
@@ -236,7 +236,7 @@ void test_reliable_duplicate_filtering()
     static BytePipe sink;
     ab = {}; sink = {};
 
-    minros::Node<> node_a, node_b;
+    minros::RawNode<> node_a, node_b;
     node_a.transport = {
         .send_bytes = { pipe_send,   &ab },
         .read_bytes = { noop_recv,   nullptr },
