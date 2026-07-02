@@ -1,188 +1,181 @@
 #pragma once
-#include "minros/core/parser.hpp"
-#include "minros/core/broker.hpp"
-#include "minros/core/framer.hpp"
-#include "minros/reliability/sequencer.hpp"
-#include "minros/utils/utils.hpp"
+#include "minros/raw_node.hpp"
+#include "minros/reliability/reliable.hpp"
+
+#include <cstring>
 
 
 namespace minros {
 
-    struct Transport {
-        delegate<void, u8*, u8> send_bytes;
-        delegate<void, u8*, u8> read_bytes;
-        delegate<u8>            get_size;
-        delegate<u32>           get_time;
-    };
-
-
     // ─────────────────────────────────────────────────────────────────────────
-    // Node
+    // Node — yüksek seviye tipli API (RawNode + reliability::Reliable sarmalayıcı)
     //
     // Template parametreler:
-    //   MAX_CH         — maksimum kanal sayısı (varsayılan 32)
-    //   MAX_SUBS       — broker'a kayıt edilebilecek maksimum abonelik (varsayılan 16)
+    //   MAX_SUBS       — maksimum abonelik sayısı (varsayılan 16)
+    //                    Dahili broker'a ACK kanalı için +1 slot verilir.
     //   MAX_FRAME_DATA — frame DATA alanı maksimum uzunluğu (varsayılan 249)
-    //   MAX_RELIABLE   — güvenilir publisher + subscriber başına maksimum kanal (varsayılan 8)
+    //   MAX_RELIABLE   — güvenilir publisher/subscriber başına maksimum kanal (varsayılan 8)
     //
-    // Kullanım özeti:
+    // Kullanım:
     //   Node<> node;
     //   node.transport = { ... };
     //
-    //   // Non-reliable subscriber
-    //   node.subscribe(ch_id, {on_data, ctx});
+    //   // Publisher
+    //   auto pub = node.create_publisher<Twist>(ch_id);
+    //   pub.publish(msg);
     //
-    //   // Reliable subscriber
-    //   node.create_subscription<Twist>(ch_id, {on_cmd, ctx}, true);
+    //   // Subscriber — callback doğrudan tipli mesaj alır
+    //   node.create_subscription<Twist>(ch_id, {on_cmd, ctx});
+    //   // fn imzası: void on_cmd(const Twist& msg, void* ctx)
     //
-    //   // Non-reliable publisher
-    //   auto pub = node.create_publisher<Vector3>(ch_id, "imu_accel");
-    //   pub.publish(vec);
+    //   // Güvenilir publisher — buffer'ı Publisher kendi içinde tutar
+    //   auto pub = node.create_publisher<Twist>(ch_id, /*reliable=*/true);
+    //   if (!pub.publish(msg)) { /* önceki hâlâ uçuşta, sonra dene */ }
     //
-    //   // Reliable publisher
-    //   auto cmd = node.create_publisher<Twist>(ch_id, "cmd_vel", true, {on_retransmit, ctx});
-    //   cmd.publish(msg);
+    //   // Güvenilir subscriber
+    //   node.create_subscription<Twist>(ch_id, {on_cmd, ctx}, /*reliable=*/true);
     //
-    //   // Loop içinde
-    //   node.spin_once();
+    //   node.spin_once();   // loop() içinde
     //
     // ─────────────────────────────────────────────────────────────────────────
 
-    template<u8 MAX_CH         = 32,
-             u8 MAX_SUBS       = 16,
+    template<u8 MAX_SUBS       = 16,
              u8 MAX_FRAME_DATA = core::wireframe::MAX_DATA_LEN,
              u8 MAX_RELIABLE   = 8>
     class Node {
-        static_assert(MAX_FRAME_DATA >= core::wireframe::MIN_DATA_LEN &&
-                      MAX_FRAME_DATA <= core::wireframe::MAX_DATA_LEN,
-                      "MAX_FRAME_DATA aralık dışı");
+        static_assert(MAX_SUBS > 0,   "MAX_SUBS en az 1 olmalı");
+        static_assert(MAX_SUBS < 255, "MAX_SUBS 255'ten küçük olmalı (ACK için +1 slot)");
+
+        // ACK kanalı dahili broker'da +1 slot tüketir.
+        using NodeT     = RawNode<static_cast<u8>(MAX_SUBS + 1u), MAX_FRAME_DATA>;
+        using ReliableT = reliability::Reliable<NodeT, MAX_RELIABLE, MAX_RELIABLE>;
 
     public:
-        using ChannelCallback    = typename core::Broker<MAX_SUBS>::ChannelCallback;
-        using ParseErrorCallback = typename core::Parser<MAX_FRAME_DATA>::ErrorCallback;
-        using RetransmitCallback = typename reliability::Sequencer<MAX_RELIABLE, MAX_RELIABLE>::RetransmitCallback;
+        // TypedCallback<MsgT> = delegate<void, const MsgT&>
+        // fn imzası: void fn(const MsgT& msg, void* ctx)
+        template<typename MsgT>
+        using TypedCallback = delegate<void, const MsgT&>;
 
-        // ── Publisher ────────────────────────────────────────────────────────
+
+        // ── Publisher ─────────────────────────────────────────────────────
         //
-        // MsgT tipini bilen ince sarmalayıcı. Veri tutmaz.
-        // Reliable modda publish akışı:
-        //   1. sequencer_.acquire_seq()   — seq al; ACK bekliyorsa false döner
-        //   2. node_->publish(seq)     — frame gönder
-        //   3. sequencer_.notify_sent() — timeout sayacını başlat
+        // create_publisher<MsgT>() tarafından döndürülür.
+        // Reliable ise mesajı serileştirip kendi buf_'unda tutar (retransmit backing);
+        // Reliable bu buffer'ın pointer'ını tutar. Bu yüzden:
+        //   • kopyalanamaz (kopya farklı adres → dangling),
+        //   • taşınabilir, AMA yalnızca uçuşta mesaj YOKKEN (örn. setup'ta atama).
         //
         template<typename MsgT>
         struct Publisher {
             Publisher() = default;
 
+            Publisher(const Publisher&)            = delete;
+            Publisher& operator=(const Publisher&) = delete;
+            Publisher(Publisher&&)                 = default;
+            Publisher& operator=(Publisher&&)      = default;
+
             bool publish(const MsgT& msg) {
-                if (!node_) return false;
+                if (!hl_) return false;
 
-                u8 buf[MsgT::SIZE];
-                msg.to_bytes(buf);
-
-                if (!reliable_) {
-                    return node_->publish(ch_id_, buf, MsgT::SIZE);
-
-                } else {
-                    // Reliable: seq al — timeout sayacı acquire_seq içinde başlar
-                    auto seq_ret = node_->sequencer_.acquire_seq(ch_id_, node_->transport.get_time());
-                    if (!seq_ret.success) return false;
-    
-                    return node_->publish(ch_id_, buf, MsgT::SIZE, seq_ret.seq);
+                if (reliable_) {
+                    if (!hl_->reliable_.can_send(ch_id_)) return false;  // uçuşta
+                    msg.to_bytes(buf_);                                  // kalıcı backing
+                    return hl_->reliable_.publish(ch_id_, buf_, MsgT::SIZE);
                 }
+
+                u8 buf[MsgT::SIZE];                                      // unreliable: stack yeterli
+                msg.to_bytes(buf);
+                return hl_->node_.publish(ch_id_, buf, MsgT::SIZE);
             }
 
-            bool is_valid() {
-                return node_;
-            }
+            bool is_valid() const { return hl_ != nullptr; }
 
         private:
             friend class Node;
-            Publisher(Node* n, u8 id, bool reliable)
-                : node_(n), ch_id_(id), reliable_(reliable) {}
-            Node* node_     = nullptr;
-            u8    ch_id_    = 0;
-            bool  reliable_ = false;
+            Publisher(Node* hl, u8 id, bool reliable)
+                : hl_(hl), ch_id_(id), reliable_(reliable) {}
+
+            Node* hl_       = nullptr;
+            u8      ch_id_    = 0;
+            bool    reliable_ = false;
+            u8      buf_[MsgT::SIZE]{};   // reliable retransmit için kalıcı backing
         };
 
 
-        // ── Kurucu ───────────────────────────────────────────────────────────
-        Node() {
-            parser_.set_on_frame_completed({&core::Broker<MAX_SUBS>::frame_cb, &broker_});
+        // ── Kurucu ───────────────────────────────────────────────────────
+        Node() : transport(node_.transport), reliable_(node_) {}
 
-            // Sequencer sadece ACK frame'leri gönderebilir — kullanıcı verisi değil.
-            sequencer_.set_ack_sender({&Node::ack_publish_cb, this});
-            broker_.subscribe(reliability::protocol::ACK_CHANNEL_ID,
-                              sequencer_.ack_callback());
-        }
+        Node(const Node&)            = delete;
+        Node& operator=(const Node&) = delete;
 
 
-        // ── Temel API ────────────────────────────────────────────────────────
+        // ── API ───────────────────────────────────────────────────────────
 
-        // Periyodik işlemler — loop() içinde çağır
+        // node.transport = { ... }; ile doğrudan atama çalışır
+        Transport& transport;
+
         void spin_once() {
-            feed_parser();
-            sequencer_.tick(transport.get_time());
+            node_.spin_once();
+            reliable_.tick();
         }
 
-        bool subscribe(u8 ch_id, ChannelCallback cb) {
-            return broker_.subscribe(ch_id, cb);
-        }
-
-        // reliable=true: Sequencer wrapper → duplicate tespiti + otomatik ACK
+        // reliable=true ise güvenilir publisher kanalı kaydedilir.
         template<typename MsgT>
-        bool create_subscription(u8 ch_id, ChannelCallback cb, bool reliable = false) {
-            if (reliable) {
-                ChannelCallback wrapped = sequencer_.make_reliable_sub(ch_id, cb);
-                if (!wrapped.is_valid()) return false;
-                return broker_.subscribe(ch_id, wrapped);
-            }
-            return broker_.subscribe(ch_id, cb);
-        }
-
-        // reliable=true ise retransmit_cb zorunlu:
-        //   fn(ch_id, seq, ctx) — timeout'ta çağrılır, kullanıcı pub.publish(msg) çağırır
-        template<typename MsgT>
-        Publisher<MsgT> create_publisher(
-            u8                 ch_id,
-            const char*        ch_name,
-            bool               reliable      = false,
-            RetransmitCallback retransmit_cb = {}
-        ) {
-            if (reliable) {
-                if(!sequencer_.register_pub(ch_id, retransmit_cb)) return {};
-            }
+        Publisher<MsgT> create_publisher(u8 ch_id, bool reliable = false) {
+            if (reliable && !reliable_.register_pub(ch_id)) return {};
             return Publisher<MsgT>(this, ch_id, reliable);
         }
 
-        bool publish(u8 ch_id, u8* payload, u8 len, u8 seq = 0x00) {
-            if (!transport.send_bytes.is_valid())          return false;
-            if (!framer_.build(ch_id, seq, payload, len))  return false;
-            transport.send_bytes(framer_.data(), framer_.size());
-            return true;
-        }
+        template<typename MsgT>
+        bool create_subscription(u8 ch_id, TypedCallback<MsgT> cb, bool reliable = false) {
+            if (!cb.is_valid())               return false;
+            if (typed_sub_count_ >= MAX_SUBS) return false;
 
-        Transport transport;
+            TypedSubEntry& e = typed_subs_[typed_sub_count_++];
+            e.dispatch = &TypedSubEntry::template make_dispatch<MsgT>;
+
+            // Tipli fonksiyon pointer'ını void* olarak sakla.
+            // sizeof(fn*) == sizeof(void*) tüm hedef platformlarda (ARM Cortex-M, ESP32, x86).
+            auto fn = cb.raw_fn();
+            memcpy(&e.fn, &fn, sizeof(e.fn));
+            e.ctx = cb.raw_ctx();
+
+            if (reliable)
+                return reliable_.subscribe(ch_id, {&TypedSubEntry::raw_adapter, &e});
+            return node_.subscribe(ch_id, {&TypedSubEntry::raw_adapter, &e});
+        }
 
     private:
-        core::Parser<MAX_FRAME_DATA>         parser_;
-        core::Broker<MAX_SUBS>               broker_;
-        core::Framer<MAX_FRAME_DATA>         framer_;
-        reliability::Sequencer<MAX_RELIABLE, MAX_RELIABLE> sequencer_;
+        // ── Tip silme (type erasure) — abonelik için ─────────────────────
+        //
+        // Her TypedSubEntry, MsgT tipini bilen bir dispatch fonksiyonu saklar.
+        // Broker/Reliable: raw byte → raw_adapter → dispatch → deserialize → tipli callback.
+        //
+        struct TypedSubEntry {
+            void (*dispatch)(const u8* payload, u8 len, void* fn, void* ctx) = nullptr;
+            void* fn  = nullptr;
+            void* ctx = nullptr;
 
-        void feed_parser() {
-            auto w = parser_.write_window();
-            u8 n = transport.get_size();
-            if (n > w.size) n = w.size;
-            transport.read_bytes(w.data, n);
-            parser_.commit(n);
-        }
+            template<typename MsgT>
+            static void make_dispatch(const u8* payload, u8 len, void* fn, void* ctx) {
+                MsgT msg;
+                if (!msg.from_bytes(payload, len)) return;
+                void (*typed_fn)(const MsgT&, void*);
+                memcpy(&typed_fn, &fn, sizeof(typed_fn));
+                typed_fn(msg, ctx);
+            }
 
-        // Sequencer'ın ACK frame'lerini göndermesi için köprü.
-        // Sequencer send_ack'i fn(ch_id, seq, payload, len) ile çağırır.
-        static void ack_publish_cb(u8 ch_id, u8 seq, u8* payload, u8 len, void* ctx) {
-            static_cast<Node*>(ctx)->publish(ch_id, payload, len, seq);
-        }
+            // RawNode/Reliable ChannelCallback imzası: fn(payload, len, ctx)
+            static void raw_adapter(u8* payload, u8 len, void* self) {
+                auto* e = static_cast<TypedSubEntry*>(self);
+                if (e->dispatch) e->dispatch(payload, len, e->fn, e->ctx);
+            }
+        };
+
+        NodeT         node_;
+        ReliableT     reliable_;
+        TypedSubEntry typed_subs_[MAX_SUBS]{};
+        u8            typed_sub_count_ = 0;
     };
 
 } // namespace minros

@@ -4,9 +4,12 @@
 //   node_a  --[a_to_b]--> node_b   (mesaj)
 //   node_b  --[b_to_a]--> node_a   (ACK)
 //
-// Test 1 — Float32 best-effort: pub.publish() → node_b.spin_once() → callback
+// Test 1 — Float32 best-effort: pub.publish() → node_b.spin_once() → typed callback
 // Test 2 — Twist reliable:      pub.publish() → node_b.spin_once() (callback+ACK)
 //                                             → node_a.spin_once() (ACK alındı)
+//
+// Reliability artık Node'in içindeki reliability::Reliable overlay'i tarafından
+// yönetilir; retransmit otonomdur (callback yok), buffer'ı Publisher kendi tutar.
 // ─────────────────────────────────────────────────────────────────────────────
 
 #include <unity.h>
@@ -24,7 +27,7 @@ struct BytePipe {
     uint16_t tail     = 0;
 
     uint8_t available() const {
-        uint16_t n = tail - head;           // uint16 taşması güvenli
+        uint16_t n = tail - head;
         return n > 255 ? 255 : static_cast<uint8_t>(n);
     }
 
@@ -73,13 +76,10 @@ void tearDown() {}
 static bool  t1_received = false;
 static float t1_value    = 0.0f;
 
-static void t1_on_float32(uint8_t /*seq*/, uint8_t* payload, uint8_t len, void*)
+static void t1_on_float32(const minros::std_msgs::Float32& msg, void*)
 {
-    minros::std_msgs::Float32 msg;
-    if (msg.from_bytes(payload, len)) {
-        t1_received = true;
-        t1_value    = msg.value;
-    }
+    t1_received = true;
+    t1_value    = msg.value;
 }
 
 void test_float32_best_effort()
@@ -93,7 +93,7 @@ void test_float32_best_effort()
     minros::Node<> node_a, node_b;
     connect(node_a, node_b, ab, ba);
 
-    auto pub = node_a.create_publisher<minros::std_msgs::Float32>(0x01, "f32");
+    auto pub = node_a.create_publisher<minros::std_msgs::Float32>(0x01);
     node_b.create_subscription<minros::std_msgs::Float32>(0x01, { t1_on_float32, nullptr });
 
     minros::std_msgs::Float32 msg;
@@ -111,26 +111,19 @@ void test_float32_best_effort()
 // Test 2 — Twist reliable, ACK geri dönüşü
 // ─────────────────────────────────────────────────────────────────────────────
 
-static bool  t2_received       = false;
-static float t2_linear_x       = 0.0f;
-static bool  t2_retransmitted  = false;
+static bool  t2_received = false;
+static float t2_linear_x = 0.0f;
 
-static void t2_on_twist(uint8_t /*seq*/, uint8_t* payload, uint8_t len, void*)
+static void t2_on_twist(const minros::std_msgs::Twist& msg, void*)
 {
-    minros::std_msgs::Twist msg;
-    if (msg.from_bytes(payload, len)) {
-        t2_received  = true;
-        t2_linear_x  = msg.linear.x;
-    }
+    t2_received = true;
+    t2_linear_x = msg.linear.x;
 }
-
-static void t2_on_retransmit(uint8_t, uint8_t, void*) { t2_retransmitted = true; }
 
 void test_twist_reliable_with_ack()
 {
-    t2_received      = false;
-    t2_linear_x      = 0.0f;
-    t2_retransmitted = false;
+    t2_received = false;
+    t2_linear_x = 0.0f;
 
     static BytePipe ab, ba;
     ab = {}; ba = {};
@@ -138,9 +131,7 @@ void test_twist_reliable_with_ack()
     minros::Node<> node_a, node_b;
     connect(node_a, node_b, ab, ba);
 
-    auto pub = node_a.create_publisher<minros::std_msgs::Twist>(
-        0x02, "twist", /*reliable=*/true, { t2_on_retransmit, nullptr }
-    );
+    auto pub = node_a.create_publisher<minros::std_msgs::Twist>(0x02, /*reliable=*/true);
     node_b.create_subscription<minros::std_msgs::Twist>(
         0x02, { t2_on_twist, nullptr }, /*reliable=*/true
     );
@@ -151,12 +142,14 @@ void test_twist_reliable_with_ack()
 
     TEST_ASSERT_TRUE_MESSAGE(pub.publish(cmd), "reliable publish() false döndü");
 
-    node_b.spin_once();  // Twist'i işle → callback + ACK gönder
-    node_a.spin_once();  // ACK'i al     → sequencer tamamlandı
+    node_b.spin_once();  // Twist'i işle → typed callback + ACK gönder
+    node_a.spin_once();  // ACK'i al     → ack_pending temizlendi
 
     TEST_ASSERT_TRUE_MESSAGE(t2_received,  "subscriber callback çağrılmadı");
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.5f, t2_linear_x);
-    TEST_ASSERT_FALSE_MESSAGE(t2_retransmitted, "ACK alındı, retransmit beklenmiyordu");
+
+    // ACK alındıktan sonra aynı kanaldan tekrar gönderilebilmeli
+    TEST_ASSERT_TRUE_MESSAGE(pub.publish(cmd), "ACK sonrası reliable publish() false döndü");
 }
 
 // ─── Unity giriş noktası ──────────────────────────────────────────────────────

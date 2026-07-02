@@ -21,6 +21,9 @@ public:
 
     bool is_valid() const { return fn != nullptr; }
 
+    Fn    raw_fn()  const { return fn; }
+    void* raw_ctx() const { return obj; }
+
 private:
     Fn    fn  = nullptr;
     void* obj = nullptr;

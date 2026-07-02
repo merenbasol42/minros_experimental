@@ -6,36 +6,42 @@ Genel Frame Tanımı {
     HEADER
     LENGTH
     CH_ID
-    SEQ
-    PAYLOAD
+    PAYLOAD          <- core SEQ bilmez; SEQ artık frame alanı DEĞİL
     CRC
 }
 
-Mesaj Tanımı {
-    RESP  : 1 byte = '0x06' (response tipi, ASCII ACK) 
-    CH_ID : 1 byte (Kanal ID'si) 
-    SEQ   : 1 byte (Mesajın sequence numarası)
+Reliable veri frame'i {
+    Reliable katmanı, kullanıcı verisinin önüne 1 baytlık seq öneki koyar.
+    PAYLOAD = [SEQ (1 byte)][user bytes...]
+    Bu önek core için opaktır; yalnızca Reliable subscriber wrapper'ı ayıklar.
+}
+
+ACK Mesaj Tanımı (PAYLOAD içeriği) {
+    RESP  : 1 byte = '0x06' (response tipi, ASCII ACK)
+    CH_ID : 1 byte (ACK'lenen kanal ID'si)
+    SEQ   : 1 byte (ACK'lenen mesajın sequence numarası)
 
     RESP alanı neden var ?
-    aslında zaten sadece ACK gönderiliyor NACK yok ama belki ilerleyen zamanlarda eklenir diye bunun için 
+    aslında zaten sadece ACK gönderiliyor NACK yok ama belki ilerleyen zamanlarda eklenir diye bunun için
 }
 
-Frame İçinde Mesajımız {
+ACK Frame İçinde {
     HEADER : 4 byte  = fixed 'mros'
-    LENGTH : 1 byte  = 
-    CH_ID  : 1 byte  = 249 
-    SEQ    : 1 byte  = önemli değil işlenmeyecek
+    LENGTH : 1 byte  = CH_ID + payload uzunluğu
+    CH_ID  : 1 byte  = 249
 
     Payload {
-        RESP   : 1 byte = 0x06
-        CH_ID : 1 byte 
+        RESP  : 1 byte = 0x06
+        CH_ID : 1 byte
         SEQ   : 1 byte
     }
+
+    CRC    : 1 byte
 }
 
 
-reliable olan kanallarda yayımlayıcılar veriyi gönderdikten sonra, kendi kanal idlerini ve gönderdikleri mesajın sequence numarasını taşıyan bir ack mesajı beklerler. bu ack mesajı gelmeden başka bir mesaj yayınlamazlar. bu duplicate sorununu önler. 
+reliable olan kanallarda yayımlayıcılar veriyi gönderdikten sonra, kendi kanal idlerini ve gönderdikleri mesajın sequence numarasını taşıyan bir ack mesajı beklerler. bu ack mesajı gelmeden başka bir mesaj yayınlamazlar (can_send false döner). bu duplicate sorununu önler.
 
 reliable olan kanallarda dinleyiciler veriyi aldıktan sonra kendi kanal idlerini ve aldıkları mesajın sequence numarasını taşıyan bir ack mesajı gönderirler. eğer aynı seq numaralı bir mesaj gelmişse haberleşmede bir sorun olduğunu anlarlar ve tekrar bir ack gönderirler ama veriyi bir daha işlemezler. böylece duplicate sorunu çözülmüş olur.
 
-
+yayımlayıcı tarafında ack gelmezse, Reliable::tick() içinde timeout tetiklenir ve mesaj aynı seq ile otomatik yeniden gönderilir (pointer-tutma; kopya yok, kullanıcıya geri dönen callback yok).
