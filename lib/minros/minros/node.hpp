@@ -1,6 +1,7 @@
 #pragma once
 #include "minros/raw_node.hpp"
 #include "minros/reliability/reliable.hpp"
+#include "minros/logging/logger.hpp"
 
 #include <cstring>
 
@@ -35,6 +36,12 @@ namespace minros {
     //   // Güvenilir subscriber
     //   node.create_subscription<Twist>(ch_id, {on_cmd, ctx}, /*reliable=*/true);
     //
+    //   // Logging (best-effort, CH248) — yalnızca yayın, zero-buffer
+    //   node.set_log_level(Node<>::LogLevel::INFO);   // DEBUG bastırılır
+    //   node.log_info("motor started");
+    //   node.log_error("imu timeout");
+    //   // Log ALMAK için host tarafında logging::LogSink kullanılır (minrospy).
+    //
     //   node.spin_once();   // loop() içinde
     //
     // ─────────────────────────────────────────────────────────────────────────
@@ -49,8 +56,15 @@ namespace minros {
         // ACK kanalı dahili broker'da +1 slot tüketir.
         using NodeT     = RawNode<static_cast<u8>(MAX_SUBS + 1u), MAX_FRAME_DATA>;
         using ReliableT = reliability::Reliable<NodeT, MAX_RELIABLE, MAX_RELIABLE>;
+        // Logger yalnızca PUBLISH eder (sink değil) → broker subscriber slotu
+        // tüketmez ve zero-buffer'dır (NodeT* + Level). Log almak için host
+        // tarafında logging::LogSink standalone kullanılır (minrospy Python sink).
+        using LoggerT   = logging::Logger<NodeT, MAX_FRAME_DATA>;
 
     public:
+        // Log seviyeleri (logging::Level takma adı).
+        using LogLevel = logging::Level;
+
         // TypedCallback<MsgT> = delegate<void, const MsgT&>
         // fn imzası: void fn(const MsgT& msg, void* ctx)
         template<typename MsgT>
@@ -103,7 +117,7 @@ namespace minros {
 
 
         // ── Kurucu ───────────────────────────────────────────────────────
-        Node() : transport(node_.transport), reliable_(node_) {}
+        Node() : transport(node_.transport), reliable_(node_), logger_(node_) {}
 
         Node(const Node&)            = delete;
         Node& operator=(const Node&) = delete;
@@ -145,6 +159,26 @@ namespace minros {
             return node_.subscribe(ch_id, {&TypedSubEntry::raw_adapter, &e});
         }
 
+
+        // ── Logging (best-effort, CH248) ──────────────────────────────────
+        //
+        // Yalnızca yayın; zero-buffer. min_level altındaki çağrılar wire'a hiç
+        // dokunmadan döner. String literal flash'ta kalır (memory-mapped flash
+        // hedeflerinde kopya yok). Uzun mesaj otomatik parçalanır.
+
+        // Eşik seviyesi: bu seviyenin altındaki loglar bastırılır.
+        void set_log_level(LogLevel level) { logger_.set_min_level(level); }
+
+        // Ham byte log (binary-safe).
+        void log(LogLevel level, const u8* msg, u8 len) { logger_.log(level, msg, len); }
+
+        // C-string kolaylıkları.
+        void log_debug(const char* s) { logger_.debug(s); }
+        void log_info (const char* s) { logger_.info(s);  }
+        void log_warn (const char* s) { logger_.warn(s);  }
+        void log_error(const char* s) { logger_.error(s); }
+        void log_fatal(const char* s) { logger_.fatal(s); }
+
     private:
         // ── Tip silme (type erasure) — abonelik için ─────────────────────
         //
@@ -174,6 +208,7 @@ namespace minros {
 
         NodeT         node_;
         ReliableT     reliable_;
+        LoggerT       logger_;
         TypedSubEntry typed_subs_[MAX_SUBS]{};
         u8            typed_sub_count_ = 0;
     };

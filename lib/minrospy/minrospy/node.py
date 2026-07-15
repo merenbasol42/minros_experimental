@@ -29,8 +29,9 @@ Kullanım:
 from collections.abc import Callable
 
 from .core import wireframe
-from .raw_node import RawNode, Transport
+from .logging.logger import Level, Logger
 from .reliability.reliable import Reliable
+from .raw_node import RawNode, Transport
 
 
 class Publisher:
@@ -63,6 +64,12 @@ class Node:
     ):
         self._node = RawNode(max_frame_data)
         self._reliable = Reliable(self._node, max_retry=max_retry, timeout_ms=timeout_ms)
+        # Logger yalnızca PUBLISH eder (sink değil) -> broker subscriber slotu
+        # tüketmez. Log ALMAK için host tarafında logging.LogSink kullanılır.
+        self._logger = Logger(self._node, frame_data=max_frame_data)
+
+    # Log seviyeleri (logging.Level takma adı).
+    LogLevel = Level
 
     # transport doğrudan alttaki RawNode'a yönlendirilir
     @property
@@ -112,3 +119,30 @@ class Node:
         if reliable:
             return self._reliable.subscribe(ch_id, adapter)
         return self._node.subscribe(ch_id, adapter)
+
+    # ── Logging (best-effort, CH248) ──────────────────────────────────────
+    # Yalnızca yayın. min_level altındaki çağrılar wire'a hiç dokunmaz. Uzun
+    # mesaj otomatik parçalanır. Log ALMAK için logging.LogSink kullanın.
+
+    def set_log_level(self, level: Level) -> None:
+        """Eşik seviyesi: bu seviyenin altındaki loglar bastırılır."""
+        self._logger.set_min_level(level)
+
+    def log(self, level: Level, msg) -> None:
+        """Ham byte / str log."""
+        self._logger.log(level, msg)
+
+    def log_debug(self, msg) -> None:
+        self._logger.debug(msg)
+
+    def log_info(self, msg) -> None:
+        self._logger.info(msg)
+
+    def log_warn(self, msg) -> None:
+        self._logger.warn(msg)
+
+    def log_error(self, msg) -> None:
+        self._logger.error(msg)
+
+    def log_fatal(self, msg) -> None:
+        self._logger.fatal(msg)
