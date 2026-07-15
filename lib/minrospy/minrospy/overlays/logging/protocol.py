@@ -14,7 +14,7 @@ FLAGS bit yerleşimi (1 byte):
     bit 1..3    LEVEL  : seviye 0..4; her parçada taşınır -> parse tekdüze
     bit 4..7    SEQ4   : 0..15 dönen parça sayacı (kayıp/atlama tespiti)
 
-C++ tarafındaki minros::logging::protocol'un portudur.
+C++ tarafındaki minros::overlays::logging::protocol'un portudur.
 """
 
 import enum

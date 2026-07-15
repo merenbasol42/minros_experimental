@@ -29,7 +29,7 @@ Kullanım (yayın):
 
 from collections.abc import Callable
 
-from ..core import wireframe
+from ...core import wireframe
 from . import protocol
 from .protocol import Level
 

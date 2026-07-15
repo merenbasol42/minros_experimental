@@ -1,7 +1,7 @@
 #pragma once
 
 #include "minros/utils/utils.hpp"
-#include <minros/reliability/reliability_protocol.hpp>
+#include <minros/overlays/reliability/reliability_protocol.hpp>
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Reliable — minros güvenilirlik (reliability) overlay'i
@@ -41,6 +41,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 namespace minros {
+namespace overlays {
 namespace reliability {
 
 template<
@@ -237,4 +238,5 @@ private:
 };
 
 } // namespace reliability
+} // namespace overlays
 } // namespace minros

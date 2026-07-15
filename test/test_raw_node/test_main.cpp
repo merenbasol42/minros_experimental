@@ -19,7 +19,7 @@
 #include <cstring>
 
 #include <minros/raw_node.hpp>
-#include <minros/reliability/reliable.hpp>
+#include <minros/overlays/reliability/reliable.hpp>
 
 // ─── BytePipe: sabit boyutlu döngüsel tampon ──────────────────────────────────
 struct BytePipe {
@@ -137,8 +137,8 @@ void test_reliable_ack_roundtrip()
     minros::RawNode<> node_a, node_b;
     connect(node_a, node_b, ab, ba);
 
-    minros::reliability::Reliable rel_a{node_a};   // publisher tarafı (ACK alır)
-    minros::reliability::Reliable rel_b{node_b};   // subscriber tarafı (ACK yollar)
+    minros::overlays::reliability::Reliable rel_a{node_a};   // publisher tarafı (ACK alır)
+    minros::overlays::reliability::Reliable rel_b{node_b};   // subscriber tarafı (ACK yollar)
 
     rel_b.subscribe(0x02, { t2_on_bytes, nullptr });
 
@@ -196,8 +196,8 @@ void test_reliable_timeout_retransmit()
         .get_time   = { get_fake_time, nullptr },
     };
 
-    minros::reliability::Reliable rel_a{node_a};
-    minros::reliability::Reliable rel_b{node_b};
+    minros::overlays::reliability::Reliable rel_a{node_a};
+    minros::overlays::reliability::Reliable rel_b{node_b};
     rel_b.subscribe(0x03, { t3_on_bytes, nullptr });
 
     const uint8_t data[] = {0xFF};
@@ -250,8 +250,8 @@ void test_reliable_duplicate_filtering()
         .get_time   = { get_fake_time, nullptr },
     };
 
-    minros::reliability::Reliable rel_a{node_a};
-    minros::reliability::Reliable rel_b{node_b};
+    minros::overlays::reliability::Reliable rel_a{node_a};
+    minros::overlays::reliability::Reliable rel_b{node_b};
     rel_b.subscribe(0x04, { t4_on_bytes, nullptr });
 
     const uint8_t data[] = {0x42};

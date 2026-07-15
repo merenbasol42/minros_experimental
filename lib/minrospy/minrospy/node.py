@@ -29,8 +29,8 @@ Kullanım:
 from collections.abc import Callable
 
 from .core import wireframe
-from .logging.logger import Level, Logger
-from .reliability.reliable import Reliable
+from .overlays.logging.logger import Level, Logger
+from .overlays.reliability.reliable import Reliable
 from .raw_node import RawNode, Transport
 
 

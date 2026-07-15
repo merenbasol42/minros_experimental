@@ -4,7 +4,7 @@
 
 
 
-namespace minros::reliability::protocol {
+namespace minros::overlays::reliability::protocol {
    
     enum class ResponseType: u8 {
         ACK = 0x06
@@ -26,4 +26,4 @@ namespace minros::reliability::protocol {
 
     constexpr u8 ACK_CHANNEL_ID = 249;
 
-} // namespace reliability
+} // namespace minros::overlays::reliability::protocol

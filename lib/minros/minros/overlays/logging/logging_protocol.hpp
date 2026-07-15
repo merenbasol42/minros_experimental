@@ -3,7 +3,7 @@
 #include <minros/utils/utils.hpp>
 
 
-namespace minros::logging::protocol {
+namespace minros::overlays::logging::protocol {
 
     // ─────────────────────────────────────────────────────────────────────────
     // minros logging overlay — wire protokolü
@@ -52,4 +52,4 @@ namespace minros::logging::protocol {
     constexpr Level flag_level(u8 flags) { return static_cast<Level>((flags >> 1) & 0x07); }
     constexpr u8    flag_seq  (u8 flags) { return static_cast<u8>((flags >> 4) & 0x0F); }
 
-} // namespace minros::logging::protocol
+} // namespace minros::overlays::logging::protocol

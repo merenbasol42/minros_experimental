@@ -2,7 +2,7 @@
 
 #include "minros/utils/utils.hpp"
 #include "minros/core/wireframe.hpp"
-#include <minros/logging/logging_protocol.hpp>
+#include <minros/overlays/logging/logging_protocol.hpp>
 
 // ─────────────────────────────────────────────────────────────────────────────
 // logging — minros log overlay'i
@@ -48,6 +48,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 namespace minros {
+namespace overlays {
 namespace logging {
 
 using Level = protocol::Level;
@@ -188,4 +189,5 @@ private:
 };
 
 } // namespace logging
+} // namespace overlays
 } // namespace minros

@@ -2,7 +2,7 @@
 
 #include <minros/raw_node.hpp>
 #include <minros/node.hpp>
-#include <minros/reliability/reliable.hpp>
+#include <minros/overlays/reliability/reliable.hpp>
 #include <minros/std_msgs/vector3.hpp>
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -99,7 +99,7 @@ void loop() {
 #elif NODE_TYPE == NODE_TYPE_RAW
 
 static minros::RawNode<>                 node;
-static minros::reliability::Reliable  rel{ node };   // aynı node'a takılır (ACK kanalına abone)
+static minros::overlays::reliability::Reliable  rel{ node };   // aynı node'a takılır (ACK kanalına abone)
 
 // Reliable publisher buffer'ı ACK gelene kadar SABİT kalmalı (Reliable pointer tutar).
 static u8 rel_tx[Vector3::SIZE];

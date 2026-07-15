@@ -1,7 +1,7 @@
 #pragma once
 #include "minros/raw_node.hpp"
-#include "minros/reliability/reliable.hpp"
-#include "minros/logging/logger.hpp"
+#include "minros/overlays/reliability/reliable.hpp"
+#include "minros/overlays/logging/logger.hpp"
 
 #include <cstring>
 
@@ -55,15 +55,15 @@ namespace minros {
 
         // ACK kanalı dahili broker'da +1 slot tüketir.
         using NodeT     = RawNode<static_cast<u8>(MAX_SUBS + 1u), MAX_FRAME_DATA>;
-        using ReliableT = reliability::Reliable<NodeT, MAX_RELIABLE, MAX_RELIABLE>;
+        using ReliableT = overlays::reliability::Reliable<NodeT, MAX_RELIABLE, MAX_RELIABLE>;
         // Logger yalnızca PUBLISH eder (sink değil) → broker subscriber slotu
         // tüketmez ve zero-buffer'dır (NodeT* + Level). Log almak için host
         // tarafında logging::LogSink standalone kullanılır (minrospy Python sink).
-        using LoggerT   = logging::Logger<NodeT, MAX_FRAME_DATA>;
+        using LoggerT   = overlays::logging::Logger<NodeT, MAX_FRAME_DATA>;
 
     public:
-        // Log seviyeleri (logging::Level takma adı).
-        using LogLevel = logging::Level;
+        // Log seviyeleri (overlays::logging::Level takma adı).
+        using LogLevel = overlays::logging::Level;
 
         // TypedCallback<MsgT> = delegate<void, const MsgT&>
         // fn imzası: void fn(const MsgT& msg, void* ctx)
