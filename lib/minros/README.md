@@ -1,7 +1,8 @@
 # minros
 
 `minros`, düşük kaynaklı gömülü sistemler için C++17 tabanlı, header-only bir mesajlaşma kütüphanesi geliştirme deneyimidir.
-Güvenilir (ACK + retransmit) ve güvenilmez (best-effort) kanal iletişimini sade bir wire protokolü üzerinde bir araya getirmeyi hedeflemektedir.
+Sade bir wire protokolü üzerinden kanal (CH_ID) tabanlı yayınla/abone ol (pub/sub) iletişimi sağlamayı hedefler.
+Güvenilirlik, loglama gibi ek yetenekler çekirdeğe dokunmadan **overlay** olarak eklenir (bkz. [Overlay'ler](#overlayler)).
 
 ---
 
@@ -22,7 +23,7 @@ Statik buffer'lar sabit boyutlu olduğundan farklı projeler farklı miktarda RA
 minros::RawNode</*MAX_SUBS=*/4, /*MAX_FRAME_DATA=*/32> node;
 
 // Güvenilirlik overlay'i: 2 reliable publisher + 2 reliable subscriber kanalı
-minros::reliability::Reliable</*MAX_PUB=*/2, /*MAX_SUB=*/2> rel{node};
+minros::overlays::reliability::Reliable</*MAX_PUB=*/2, /*MAX_SUB=*/2> rel{node};
 
 // Tipli yüksek seviye: 4 abone, 32 byte frame, 2 reliable kanal
 minros::Node</*MAX_SUBS=*/4, /*MAX_FRAME_DATA=*/32, /*MAX_RELIABLE=*/2> hl;
@@ -87,9 +88,56 @@ normal bir kanaldan (CH249) yollar. `Node` gerektirmez — ham `RawNode` ile de 
 | `core/parser.hpp` | Byte stream → frame (durum makinesi) |
 | `core/broker.hpp` | CH_ID bazında callback yönlendirme |
 | `raw_node.hpp` | Core'u birleştiren saf ham byte API (`RawNode`) |
-| `reliability/reliable.hpp` | seq/ACK/retransmit/duplicate — RawNode üzerine overlay (`Reliable`) |
-| `node.hpp` | `RawNode` + `Reliable` üzerine tipli yüksek seviye sarmalayıcı (`Node`) |
-| `std_msgs/` | CRTP tabanlı sabit boyutlu mesaj tipleri |
+| `node.hpp` | `RawNode` + overlay'ler üzerine tipli yüksek seviye sarmalayıcı (`Node`) |
+| `interfaces/` | `MsgBase` (CRTP) + mesaj aileleri: `std_msgs/`, `geometry_msgs/` — sabit boyutlu tipler |
+| `overlays/` | Çekirdeğe opsiyonel eklenen katmanlar — bkz. [Overlay'ler](#overlayler) |
+
+---
+
+## Overlay'ler
+
+Overlay, çekirdeğe (core + `RawNode`) hiçbir şey eklemeden onun **public
+`publish`/`subscribe` API'sini kullanan bağımsız bir katmandır. Ortak özellikleri:
+
+- **Core'u değiştirmez.** Kendi meta verisini (seq, flags gibi) PAYLOAD'ın önüne
+  *opak bir önek* olarak koyar; core bunun anlamını bilmez.
+- **Kendi rezerve kanalını kullanır.** Kullanıcı kanallarıyla çakışmaması için
+  üst kanal bloğu overlay'lere ayrılmıştır.
+- **`Node` gerektirmez.** Ham `RawNode` ile de takılabilir; `Node` yalnızca
+  bunları tipli API altında bir araya getiren bir kolaylıktır.
+- **Bedeli seçime bağlıdır.** Kullanılmayan overlay kod/RAM maliyeti getirmez.
+
+### Rezerve kanal bloğu
+
+| Kanal | Overlay | Durum |
+|------:|---------|-------|
+| 249 | reliability ACK | mevcut |
+| 248 | logging | mevcut |
+| 247 / 246 | parameters (REQ / RES) | planlanan |
+
+### reliability — güvenilir teslim
+
+`minros::overlays::reliability::Reliable` (`overlays/reliability/reliable.hpp`)
+
+Stop-and-wait (pencere = 1): kanal başına aynı anda en fazla 1 uçuştaki frame.
+Seq'i payload önüne 1 baytlık opak önek olarak koyar, ACK'i CH249'dan yollar;
+timeout'ta aynı pointer'dan yeniden gönderir (payload kopyalanmaz). Subscriber
+tarafında duplicate filtreler ve ACK'i otomatik üretir.
+
+### logging — best-effort log yayını
+
+`minros::overlays::logging::Logger` (`overlays/logging/logger.hpp`), `Node` üzerinden
+`log_info` / `log_error` vb. ile kullanılır.
+
+CH248'den yalnızca **yayın** yapar; zero-buffer'dır (string literal flash'ta kalır).
+Eşik altındaki seviyeler wire'a hiç dokunmadan döner, uzun mesaj otomatik parçalanır.
+Log **almak** için host tarafında bir sink kullanılır (minrospy Python sink).
+
+### parameters — çalışma-zamanı yapılandırma (planlanan)
+
+Düğümlerin parametrelerini (kazanç, eşik, mod) host tarafından okunup/yazılabilir
+kılar. İki kanal (REQ/RES), sayısal `[FAMILY_ID][TYPE_ID]` tip tanımlayıcısı ve
+sabit-boyutlu değerler üzerine kurgulanır. Ayrıntı: `overlays/parameters/`.
 
 ---
 
@@ -144,7 +192,7 @@ normal bir kanaldan (CH249) yollar. `Node` gerektirmez — ham `RawNode` ile de 
 
 ```cpp
 #include <minros/node.hpp>
-#include <minros/std_msgs/twist.hpp>
+#include <minros/interfaces/geometry_msgs/twist.hpp>
 
 minros::Node<> node;
 
@@ -153,11 +201,11 @@ node.transport = { ... };
 
 // Reliable publisher — retransmit otonomdur, callback gerekmez.
 // Publisher mesajı kendi buffer'ında tutar (retransmit backing).
-auto cmd = node.create_publisher<minros::std_msgs::Twist>(CH_CMD, /*reliable=*/true);
+auto cmd = node.create_publisher<minros::interfaces::geometry_msgs::Twist>(CH_CMD, /*reliable=*/true);
 
 // Reliable subscriber — callback doğrudan tipli mesaj alır
-// void on_cmd_received(const minros::std_msgs::Twist& msg, void* ctx)
-node.create_subscription<minros::std_msgs::Twist>(
+// void on_cmd_received(const minros::interfaces::geometry_msgs::Twist& msg, void* ctx)
+node.create_subscription<minros::interfaces::geometry_msgs::Twist>(
     CH_CMD, { on_cmd_received, nullptr }, /*reliable=*/true
 );
 
@@ -177,10 +225,10 @@ Serileştirme/deserileştirme tamamen kullanıcıya aittir.
 
 ```cpp
 #include <minros/raw_node.hpp>
-#include <minros/reliability/reliable.hpp>
+#include <minros/overlays/reliability/reliable.hpp>
 
 minros::RawNode<> node;
-minros::reliability::Reliable rel{node};   // overlay'i node'a tak (CTAD)
+minros::overlays::reliability::Reliable rel{node};   // overlay'i node'a tak (CTAD)
 
 // Transport bağla
 node.transport = { ... };

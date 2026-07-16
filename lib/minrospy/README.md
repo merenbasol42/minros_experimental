@@ -21,9 +21,9 @@ seq'i payload'ın önüne opak bir önek olarak koyar, ACK'i normal bir kanaldan
 | Parser | [`core/parser.py`](minrospy/core/parser.py) | Byte akışı → frame (durum makinesi) |
 | Broker | [`core/broker.py`](minrospy/core/broker.py) | CH_ID bazında dağıtım |
 | RawNode | [`raw_node.py`](minrospy/raw_node.py) | Saf ham byte API (reliability'den habersiz) |
-| Reliable | [`reliability/reliable.py`](minrospy/reliability/reliable.py) | seq / ACK / retransmit / dedup — RawNode üzerine overlay |
+| Reliable | [`overlays/reliability/reliable.py`](minrospy/overlays/reliability/reliable.py) | seq / ACK / retransmit / dedup — RawNode üzerine overlay |
 | Node | [`node.py`](minrospy/node.py) | RawNode + Reliable üzerine tipli yüksek seviye sarmalayıcı |
-| std_msgs | [`std_msgs/`](minrospy/std_msgs) | Float32, Vector3, Twist, … |
+| interfaces | [`interfaces/`](minrospy/interfaces) | `MsgBase` + aileler: `std_msgs/` (Float32, …), `geometry_msgs/` (Vector3, Twist, …) |
 
 ## Frame formatı
 
@@ -55,7 +55,7 @@ Transport(
 
 ```python
 from minrospy import Node, Transport
-from minrospy.std_msgs import Twist, Vector3
+from minrospy.interfaces.geometry_msgs import Twist, Vector3
 
 node = Node()
 node.transport = Transport(send_bytes=..., read_bytes=..., get_size=..., get_time=...)
@@ -109,7 +109,7 @@ while True:
 ```python
 import time, serial
 from minrospy import Node, Transport
-from minrospy.std_msgs import Float32
+from minrospy.interfaces.std_msgs import Float32
 
 ser = serial.Serial("/dev/ttyUSB0", 115200, timeout=0)
 node = Node()
