@@ -24,7 +24,7 @@ import common as c
 
 from minrospy import RawNode
 from minrospy.reliability import protocol
-from minrospy.std_msgs import Vector3
+from minrospy.interfaces.geometry_msgs import Vector3
 
 CH_SEND = 2  # cihaz reliable sub
 CH_RECV = 3  # cihaz reliable pub (echo)

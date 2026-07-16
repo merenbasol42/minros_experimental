@@ -1,7 +1,7 @@
 #pragma once
 #include "minros/utils/utils.hpp"
 
-namespace minros::std_msgs {
+namespace minros::interfaces {
 
 //
 // CRTP (Curiously Recurring Template Pattern) temel sinifi
@@ -38,17 +38,18 @@ struct MsgBase {
     // Yardimci: mesaj boyutunu tip uzerinden sorgula
     static constexpr u8 size() noexcept { return Derived::SIZE; }
 
-    // Mesaj tanimı: "alan:tur,alan:tur" formatında, her derived sinif doldurur
-    static constexpr const char* definition() noexcept { return Derived::DEFINITION; }
-
-    // Mesaj tipi adı: "Vector3", "Twist" vb., her derived sinif doldurur
-    static constexpr const char* type_name() noexcept { return Derived::TYPE_NAME; }
-
-    // Introduce protokolü erişicileri (intro_protocol::MsgTypeId / FieldType)
-    static constexpr u8         type_id()     noexcept { return Derived::TYPE_ID; }
-    static constexpr u8         field_count() noexcept { return Derived::FIELD_COUNT; }
-    static constexpr const char*     field_names() noexcept { return Derived::FIELD_NAMES; }
-    static constexpr const u8*  field_types() noexcept { return Derived::FIELD_TYPES; }
+    // Mesaj tipi kimliği iki parçalıdır: [FAMILY_ID][TYPE_ID].
+    //   family_id() — mesaj ailesi (paket)
+    //   type_id()   — aile içindeki mesaj kimliği (aile-yerel)
+    //
+    // FAMILY_ID açık bir kayıt uzayıdır (kapalı enum değil). Numaralandırma
+    // aralık şemasıyla yönetilir; yeni aile eklemek çekirdek koda dokunmaz:
+    //   0x00–0x7F  resmi / rezerve aileler — proje tahsis eder
+    //              (std_msgs = 0x00, geometry_msgs = 0x01, sensor_msgs = 0x02, ...)
+    //   0x80–0xFF  özel kullanım (private) — herkes koordinasyonsuz kullanır;
+    //              resmi aileler bu bloğu ASLA almaz → çakışma garantili yok.
+    static constexpr u8 family_id() noexcept { return Derived::FAMILY_ID; }
+    static constexpr u8 type_id()   noexcept { return Derived::TYPE_ID; }
 };
 
 //
@@ -66,4 +67,4 @@ template<typename Derived>
     return msg.from_bytes(buf, len);
 }
 
-}  // namespace minros::std_msgs
+}  // namespace minros::interfaces

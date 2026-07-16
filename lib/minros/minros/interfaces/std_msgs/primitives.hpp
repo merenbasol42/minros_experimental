@@ -1,18 +1,16 @@
 #pragma once
 #include <cstring>
-#include "msg_base.hpp"
+#include "minros/interfaces/msg_base.hpp"
 
-namespace minros::std_msgs {
+namespace minros::interfaces::std_msgs {
 
 // ── Float32 ─────────────────────────────────────────────── 4 byte ──
 
 struct Float32 : MsgBase<Float32> {
     friend struct MsgBase<Float32>;
-    static constexpr u8  SIZE          = sizeof(float);
-    static constexpr u8  TYPE_ID       = 0x00;    // MsgTypeId::FLOAT32
-    static constexpr u8  FIELD_COUNT   = 1;
-    static constexpr char     FIELD_NAMES[] = "value";
-    static constexpr u8  FIELD_TYPES[] = {6};    // FieldType::F32
+    static constexpr u8  SIZE      = sizeof(float);
+    static constexpr u8  FAMILY_ID = 0x00;   // std_msgs ailesi
+    static constexpr u8  TYPE_ID   = 0x00;   // std_msgs-yerel: FLOAT32
     float value{0.0f};
 private:
     void deserialize(const u8* buf) noexcept { value = utils::endian::load_le<float>(buf); }
@@ -23,11 +21,9 @@ private:
 
 struct Int32 : MsgBase<Int32> {
     friend struct MsgBase<Int32>;
-    static constexpr u8  SIZE          = sizeof(i32);
-    static constexpr u8  TYPE_ID       = 0x01;    // MsgTypeId::INT32
-    static constexpr u8  FIELD_COUNT   = 1;
-    static constexpr char     FIELD_NAMES[] = "value";
-    static constexpr u8  FIELD_TYPES[] = {5};    // FieldType::I32
+    static constexpr u8  SIZE      = sizeof(i32);
+    static constexpr u8  FAMILY_ID = 0x00;   // std_msgs ailesi
+    static constexpr u8  TYPE_ID   = 0x01;   // std_msgs-yerel: INT32
     i32 value{0};
 private:
     void deserialize(const u8* buf) noexcept { value = utils::endian::load_le<i32>(buf); }
@@ -38,11 +34,9 @@ private:
 
 struct Int16 : MsgBase<Int16> {
     friend struct MsgBase<Int16>;
-    static constexpr u8  SIZE          = sizeof(i16);
-    static constexpr u8  TYPE_ID       = 0x02;    // MsgTypeId::INT16
-    static constexpr u8  FIELD_COUNT   = 1;
-    static constexpr char     FIELD_NAMES[] = "value";
-    static constexpr u8  FIELD_TYPES[] = {4};    // FieldType::I16
+    static constexpr u8  SIZE      = sizeof(i16);
+    static constexpr u8  FAMILY_ID = 0x00;   // std_msgs ailesi
+    static constexpr u8  TYPE_ID   = 0x02;   // std_msgs-yerel: INT16
     i16 value{0};
 private:
     void deserialize(const u8* buf) noexcept { value = utils::endian::load_le<i16>(buf); }
@@ -53,11 +47,9 @@ private:
 
 struct UInt32 : MsgBase<UInt32> {
     friend struct MsgBase<UInt32>;
-    static constexpr u8  SIZE          = sizeof(u32);
-    static constexpr u8  TYPE_ID       = 0x04;    // MsgTypeId::UINT32
-    static constexpr u8  FIELD_COUNT   = 1;
-    static constexpr char     FIELD_NAMES[] = "value";
-    static constexpr u8  FIELD_TYPES[] = {2};    // FieldType::U32
+    static constexpr u8  SIZE      = sizeof(u32);
+    static constexpr u8  FAMILY_ID = 0x00;   // std_msgs ailesi
+    static constexpr u8  TYPE_ID   = 0x04;   // std_msgs-yerel: UINT32
     u32 value{0};
 private:
     void deserialize(const u8* buf) noexcept { value = utils::endian::load_le<u32>(buf); }
@@ -68,11 +60,9 @@ private:
 
 struct UInt16 : MsgBase<UInt16> {
     friend struct MsgBase<UInt16>;
-    static constexpr u8  SIZE          = sizeof(u16);
-    static constexpr u8  TYPE_ID       = 0x05;    // MsgTypeId::UINT16
-    static constexpr u8  FIELD_COUNT   = 1;
-    static constexpr char     FIELD_NAMES[] = "value";
-    static constexpr u8  FIELD_TYPES[] = {1};    // FieldType::U16
+    static constexpr u8  SIZE      = sizeof(u16);
+    static constexpr u8  FAMILY_ID = 0x00;   // std_msgs ailesi
+    static constexpr u8  TYPE_ID   = 0x05;   // std_msgs-yerel: UINT16
     u16 value{0};
 private:
     void deserialize(const u8* buf) noexcept { value = utils::endian::load_le<u16>(buf); }
@@ -83,11 +73,9 @@ private:
 
 struct Int8 : MsgBase<Int8> {
     friend struct MsgBase<Int8>;
-    static constexpr u8  SIZE          = sizeof(i8);
-    static constexpr u8  TYPE_ID       = 0x03;    // MsgTypeId::INT8
-    static constexpr u8  FIELD_COUNT   = 1;
-    static constexpr char     FIELD_NAMES[] = "value";
-    static constexpr u8  FIELD_TYPES[] = {3};    // FieldType::I8
+    static constexpr u8  SIZE      = sizeof(i8);
+    static constexpr u8  FAMILY_ID = 0x00;   // std_msgs ailesi
+    static constexpr u8  TYPE_ID   = 0x03;   // std_msgs-yerel: INT8
     i8 value{0};
 private:
     void deserialize(const u8* buf) noexcept { value = static_cast<i8>(buf[0]); }
@@ -98,11 +86,9 @@ private:
 
 struct UInt8 : MsgBase<UInt8> {
     friend struct MsgBase<UInt8>;
-    static constexpr u8  SIZE          = sizeof(u8);
-    static constexpr u8  TYPE_ID       = 0x06;    // MsgTypeId::UINT8
-    static constexpr u8  FIELD_COUNT   = 1;
-    static constexpr char     FIELD_NAMES[] = "value";
-    static constexpr u8  FIELD_TYPES[] = {0};    // FieldType::U8
+    static constexpr u8  SIZE      = sizeof(u8);
+    static constexpr u8  FAMILY_ID = 0x00;   // std_msgs ailesi
+    static constexpr u8  TYPE_ID   = 0x06;   // std_msgs-yerel: UINT8
     u8 value{0};
 private:
     void deserialize(const u8* buf) noexcept { value = buf[0]; }
@@ -113,11 +99,9 @@ private:
 
 struct Bool : MsgBase<Bool> {
     friend struct MsgBase<Bool>;
-    static constexpr u8  SIZE          = sizeof(u8);
-    static constexpr u8  TYPE_ID       = 0x07;    // MsgTypeId::BOOL
-    static constexpr u8  FIELD_COUNT   = 1;
-    static constexpr char     FIELD_NAMES[] = "value";
-    static constexpr u8  FIELD_TYPES[] = {8};    // FieldType::BOOL
+    static constexpr u8  SIZE      = sizeof(u8);
+    static constexpr u8  FAMILY_ID = 0x00;   // std_msgs ailesi
+    static constexpr u8  TYPE_ID   = 0x07;   // std_msgs-yerel: BOOL
     bool value{false};
 private:
     void deserialize(const u8* buf) noexcept { value = buf[0] != 0; }
@@ -135,4 +119,4 @@ static_assert(sizeof(UInt16)  == UInt16::SIZE,  "UInt16: beklenmedik padding!");
 static_assert(sizeof(UInt8)   == UInt8::SIZE,   "UInt8: beklenmedik padding!");
 static_assert(sizeof(Bool)    == Bool::SIZE,    "Bool: beklenmedik padding!");
 
-}  // namespace minros::std_msgs
+}  // namespace minros::interfaces::std_msgs

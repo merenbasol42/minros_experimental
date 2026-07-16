@@ -2,16 +2,13 @@
 
 import struct
 
-from .field_type import FieldType
-from .msg_base import MsgBase
+from ..msg_base import MsgBase
 
 
 class Vector3(MsgBase):
     SIZE = 12  # 3 * 4
-    TYPE_ID = 0x08
-    FIELD_COUNT = 3
-    FIELD_NAMES = "x,y,z"
-    FIELD_TYPES = (FieldType.F32, FieldType.F32, FieldType.F32)
+    FAMILY_ID = 0x01  # geometry_msgs ailesi
+    TYPE_ID = 0x00  # geometry_msgs-yerel: VECTOR3
 
     def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0):
         self.x = x

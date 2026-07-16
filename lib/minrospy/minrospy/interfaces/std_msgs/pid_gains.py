@@ -2,16 +2,13 @@
 
 import struct
 
-from .field_type import FieldType
-from .msg_base import MsgBase
+from ..msg_base import MsgBase
 
 
 class PidGains(MsgBase):
     SIZE = 12  # 3 * 4
-    TYPE_ID = 0x0B
-    FIELD_COUNT = 3
-    FIELD_NAMES = "kp,ki,kd"
-    FIELD_TYPES = (FieldType.F32, FieldType.F32, FieldType.F32)
+    FAMILY_ID = 0x00  # std_msgs ailesi
+    TYPE_ID = 0x0B  # std_msgs-yerel: PID_GAINS
 
     def __init__(self, kp: float = 0.0, ki: float = 0.0, kd: float = 0.0):
         self.kp = kp

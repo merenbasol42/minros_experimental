@@ -5,16 +5,13 @@ Wire formatı little-endian'dır (struct '<' kullanılır).
 
 import struct
 
-from .field_type import FieldType
-from .msg_base import MsgBase
+from ..msg_base import MsgBase
 
 
 class Float32(MsgBase):
     SIZE = 4
-    TYPE_ID = 0x00
-    FIELD_COUNT = 1
-    FIELD_NAMES = "value"
-    FIELD_TYPES = (FieldType.F32,)
+    FAMILY_ID = 0x00  # std_msgs ailesi
+    TYPE_ID = 0x00  # std_msgs-yerel: FLOAT32
 
     def __init__(self, value: float = 0.0):
         self.value = value
@@ -28,10 +25,8 @@ class Float32(MsgBase):
 
 class Int32(MsgBase):
     SIZE = 4
-    TYPE_ID = 0x01
-    FIELD_COUNT = 1
-    FIELD_NAMES = "value"
-    FIELD_TYPES = (FieldType.I32,)
+    FAMILY_ID = 0x00  # std_msgs ailesi
+    TYPE_ID = 0x01  # std_msgs-yerel: INT32
 
     def __init__(self, value: int = 0):
         self.value = value
@@ -45,10 +40,8 @@ class Int32(MsgBase):
 
 class Int16(MsgBase):
     SIZE = 2
-    TYPE_ID = 0x02
-    FIELD_COUNT = 1
-    FIELD_NAMES = "value"
-    FIELD_TYPES = (FieldType.I16,)
+    FAMILY_ID = 0x00  # std_msgs ailesi
+    TYPE_ID = 0x02  # std_msgs-yerel: INT16
 
     def __init__(self, value: int = 0):
         self.value = value
@@ -62,10 +55,8 @@ class Int16(MsgBase):
 
 class Int8(MsgBase):
     SIZE = 1
-    TYPE_ID = 0x03
-    FIELD_COUNT = 1
-    FIELD_NAMES = "value"
-    FIELD_TYPES = (FieldType.I8,)
+    FAMILY_ID = 0x00  # std_msgs ailesi
+    TYPE_ID = 0x03  # std_msgs-yerel: INT8
 
     def __init__(self, value: int = 0):
         self.value = value
@@ -79,10 +70,8 @@ class Int8(MsgBase):
 
 class UInt32(MsgBase):
     SIZE = 4
-    TYPE_ID = 0x04
-    FIELD_COUNT = 1
-    FIELD_NAMES = "value"
-    FIELD_TYPES = (FieldType.U32,)
+    FAMILY_ID = 0x00  # std_msgs ailesi
+    TYPE_ID = 0x04  # std_msgs-yerel: UINT32
 
     def __init__(self, value: int = 0):
         self.value = value
@@ -96,10 +85,8 @@ class UInt32(MsgBase):
 
 class UInt16(MsgBase):
     SIZE = 2
-    TYPE_ID = 0x05
-    FIELD_COUNT = 1
-    FIELD_NAMES = "value"
-    FIELD_TYPES = (FieldType.U16,)
+    FAMILY_ID = 0x00  # std_msgs ailesi
+    TYPE_ID = 0x05  # std_msgs-yerel: UINT16
 
     def __init__(self, value: int = 0):
         self.value = value
@@ -113,10 +100,8 @@ class UInt16(MsgBase):
 
 class UInt8(MsgBase):
     SIZE = 1
-    TYPE_ID = 0x06
-    FIELD_COUNT = 1
-    FIELD_NAMES = "value"
-    FIELD_TYPES = (FieldType.U8,)
+    FAMILY_ID = 0x00  # std_msgs ailesi
+    TYPE_ID = 0x06  # std_msgs-yerel: UINT8
 
     def __init__(self, value: int = 0):
         self.value = value
@@ -130,10 +115,8 @@ class UInt8(MsgBase):
 
 class Bool(MsgBase):
     SIZE = 1
-    TYPE_ID = 0x07
-    FIELD_COUNT = 1
-    FIELD_NAMES = "value"
-    FIELD_TYPES = (FieldType.BOOL,)
+    FAMILY_ID = 0x00  # std_msgs ailesi
+    TYPE_ID = 0x07  # std_msgs-yerel: BOOL
 
     def __init__(self, value: bool = False):
         self.value = value

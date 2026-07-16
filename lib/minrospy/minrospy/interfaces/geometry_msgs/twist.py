@@ -1,16 +1,13 @@
 """Twist — linear (Vector3) + angular (Vector3). 24 byte. Wire formatı little-endian."""
 
-from .field_type import FieldType
-from .msg_base import MsgBase
+from ..msg_base import MsgBase
 from .vector3 import Vector3
 
 
 class Twist(MsgBase):
     SIZE = 24  # 2 * Vector3.SIZE
-    TYPE_ID = 0x0A
-    FIELD_COUNT = 6
-    FIELD_NAMES = "linear.x,linear.y,linear.z,angular.x,angular.y,angular.z"
-    FIELD_TYPES = (FieldType.F32,) * 6
+    FAMILY_ID = 0x01  # geometry_msgs ailesi
+    TYPE_ID = 0x02  # geometry_msgs-yerel: TWIST
 
     def __init__(self, linear: Vector3 | None = None, angular: Vector3 | None = None):
         self.linear = linear if linear is not None else Vector3()

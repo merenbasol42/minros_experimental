@@ -1,18 +1,16 @@
 #pragma once
 #include <cstring>
-#include "msg_base.hpp"
+#include "minros/interfaces/msg_base.hpp"
 
-namespace minros::std_msgs {
+namespace minros::interfaces::geometry_msgs {
 
 struct Quaternion : MsgBase<Quaternion> {
 
     friend struct MsgBase<Quaternion>;
 
-    static constexpr u8  SIZE          = 4u * sizeof(float);  // 16 byte
-    static constexpr u8  TYPE_ID       = 0x09;          // MsgTypeId::QUATERNION
-    static constexpr u8  FIELD_COUNT   = 4;
-    static constexpr char     FIELD_NAMES[] = "x,y,z,w";
-    static constexpr u8  FIELD_TYPES[] = {6, 6, 6, 6};  // FieldType::F32 x4
+    static constexpr u8  SIZE      = 4u * sizeof(float);  // 16 byte
+    static constexpr u8  FAMILY_ID = 0x01;   // geometry_msgs ailesi
+    static constexpr u8  TYPE_ID   = 0x01;   // geometry_msgs-yerel: QUATERNION
 
     float x{0.0f};
     float y{0.0f};
@@ -37,4 +35,4 @@ private:
 
 static_assert(sizeof(Quaternion) == Quaternion::SIZE, "Quaternion: beklenmedik padding!");
 
-}  // namespace minros::std_msgs
+}  // namespace minros::interfaces::geometry_msgs

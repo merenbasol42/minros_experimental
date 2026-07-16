@@ -22,19 +22,17 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from minrospy.core import wireframe
 from minrospy.core.framer import Framer
-from minrospy.std_msgs import (
+from minrospy.interfaces.geometry_msgs import Quaternion, Twist, Vector3
+from minrospy.interfaces.std_msgs import (
     Bool,
     Float32,
     Int8,
     Int16,
     Int32,
     PidGains,
-    Quaternion,
-    Twist,
     UInt8,
     UInt16,
     UInt32,
-    Vector3,
 )
 
 # conformance/vectors.json — repo kökünden çözülür (lib/minrospy/tests/../../../)

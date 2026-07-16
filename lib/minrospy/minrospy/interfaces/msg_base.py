@@ -2,17 +2,22 @@
 
 C++ tarafındaki CRTP MsgBase'in Python karşılığı. Her mesaj tipi şu sınıf
 özniteliklerini tanımlar:
-    SIZE        : wire üzerindeki sabit byte uzunluğu
-    TYPE_ID     : introduce protokolü mesaj tip kimliği
-    FIELD_COUNT : alan sayısı
-    FIELD_NAMES : "alan1,alan2,..." formatında alan adları
-    FIELD_TYPES : (FieldType, ...) — alan tipleri
+    SIZE      : wire üzerindeki sabit byte uzunluğu
+    FAMILY_ID : mesaj ailesi (paket) kimliği
+    TYPE_ID   : aile içindeki mesaj kimliği (aile-yerel)
 
 ve iki örnek metodu:
     _serialize() -> bytes
     _deserialize(buf: bytes) -> None
 
 Wire formatı little-endian'dır.
+
+Mesaj tipi kimliği iki parçalıdır: [FAMILY_ID][TYPE_ID]. FAMILY_ID açık bir
+kayıt uzayıdır (kapalı enum değil); numaralandırma aralık şemasıyla yönetilir:
+    0x00–0x7F  resmi / rezerve aileler — proje tahsis eder
+               (std_msgs = 0x00, geometry_msgs = 0x01, sensor_msgs = 0x02, ...)
+    0x80–0xFF  özel kullanım (private) — herkes koordinasyonsuz kullanır;
+               resmi aileler bu bloğu ASLA almaz → çakışma garantili yok.
 """
 
 from __future__ import annotations
@@ -20,10 +25,8 @@ from __future__ import annotations
 
 class MsgBase:
     SIZE: int = 0
+    FAMILY_ID: int = 0
     TYPE_ID: int = 0
-    FIELD_COUNT: int = 0
-    FIELD_NAMES: str = ""
-    FIELD_TYPES: tuple[int, ...] = ()
 
     # ── Serializasyon API ──────────────────────────────────────────────────
 
@@ -39,27 +42,19 @@ class MsgBase:
         msg._deserialize(buf)
         return msg
 
-    # ── Tip introspeksiyonu ────────────────────────────────────────────────
+    # ── Tip kimliği ────────────────────────────────────────────────────────
 
     @classmethod
     def size(cls) -> int:
         return cls.SIZE
 
     @classmethod
+    def family_id(cls) -> int:
+        return cls.FAMILY_ID
+
+    @classmethod
     def type_id(cls) -> int:
         return cls.TYPE_ID
-
-    @classmethod
-    def field_count(cls) -> int:
-        return cls.FIELD_COUNT
-
-    @classmethod
-    def field_names(cls) -> str:
-        return cls.FIELD_NAMES
-
-    @classmethod
-    def field_types(cls) -> tuple[int, ...]:
-        return cls.FIELD_TYPES
 
     # ── Alt sınıfların doldurduğu metodlar ─────────────────────────────────
 

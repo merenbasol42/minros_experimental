@@ -5,7 +5,7 @@ ROS benzeri hafif bir pub/sub mesajlaşma protokolü.
 
 Hızlı başlangıç:
     from minrospy import Node, Transport
-    from minrospy.std_msgs import Twist
+    from minrospy.interfaces.geometry_msgs import Twist
 
     node = Node()
     node.transport = Transport(send_bytes=..., read_bytes=..., get_size=..., get_time=...)
@@ -17,7 +17,7 @@ Hızlı başlangıç:
         node.spin_once()
 """
 
-from . import core, overlays, std_msgs
+from . import core, interfaces, overlays
 from .raw_node import RawNode, Transport
 from .node import Node, Publisher
 from .overlays.reliability import Reliable
@@ -36,5 +36,5 @@ __all__ = [
     "Level",
     "core",
     "overlays",
-    "std_msgs",
+    "interfaces",
 ]

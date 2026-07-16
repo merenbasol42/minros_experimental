@@ -15,7 +15,8 @@ from minrospy import RawNode, Node, Reliable, Transport
 from minrospy.core import wireframe
 from minrospy.core.framer import Framer
 from minrospy.core.parser import Parser
-from minrospy.std_msgs import Float32, Twist, Vector3
+from minrospy.interfaces.geometry_msgs import Twist, Vector3
+from minrospy.interfaces.std_msgs import Float32
 
 
 # ── Loopback transport ──────────────────────────────────────────────────────

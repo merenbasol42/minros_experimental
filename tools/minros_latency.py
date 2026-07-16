@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common as c
 
 from minrospy import Node
-from minrospy.std_msgs import Vector3
+from minrospy.interfaces.geometry_msgs import Vector3
 
 CH_SEND = 0  # cihaz unreliable sub
 CH_RECV = 1  # cihaz unreliable pub (echo)

@@ -3,7 +3,7 @@
 #include <minros/raw_node.hpp>
 #include <minros/node.hpp>
 #include <minros/overlays/reliability/reliable.hpp>
-#include <minros/std_msgs/vector3.hpp>
+#include <minros/interfaces/geometry_msgs/vector3.hpp>
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Düğüm tipi seçimi — YALNIZCA birini seç.
@@ -31,7 +31,7 @@ static constexpr u8 CH_UNREL_PUB = 1;
 static constexpr u8 CH_REL_SUB   = 2;
 static constexpr u8 CH_REL_PUB   = 3;
 
-using Vector3 = minros::std_msgs::Vector3;
+using Vector3 = minros::interfaces::geometry_msgs::Vector3;
 
 // Echo dönüşümü: her bileşeni 2 ile çarpar. (×2, kimlik echo yerine, gidiş-dönüş
 // veri bütünlüğünü doğrulamak için — Python testleri payload == girdi*2 bekler.
@@ -111,7 +111,7 @@ static void on_unrel_bytes(u8* payload, u8 len, void*) {
     Vector3 out = echo_of(in);
 
     u8 buf[Vector3::SIZE];
-    minros::std_msgs::serialize_to(out, buf);
+    minros::interfaces::serialize_to(out, buf);
     node.publish(CH_UNREL_PUB, buf, Vector3::SIZE);
 }
 
@@ -122,7 +122,7 @@ static void on_rel_bytes(u8* payload, u8 len, void*) {
     Vector3 out = echo_of(in);
 
     if (rel.can_send(CH_REL_PUB)) {                 // önceki echo ACK'lendi mi?
-        minros::std_msgs::serialize_to(out, rel_tx);
+        minros::interfaces::serialize_to(out, rel_tx);
         rel.publish(CH_REL_PUB, rel_tx, Vector3::SIZE);
     }
 }

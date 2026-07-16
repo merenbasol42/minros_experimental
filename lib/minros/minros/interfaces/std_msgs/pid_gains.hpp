@@ -1,19 +1,17 @@
 #pragma once
 #include <cstring>
-#include "msg_base.hpp"
+#include "minros/interfaces/msg_base.hpp"
 
-namespace minros::std_msgs {
+namespace minros::interfaces::std_msgs {
 
 struct PidGains : MsgBase<PidGains> {
 
     friend struct MsgBase<PidGains>;
 
     // kp (4) + ki (4) + kd (4) = 12 byte
-    static constexpr u8  SIZE          = 3u * sizeof(float);
-    static constexpr u8  TYPE_ID       = 0x0B;        // MsgTypeId::PID_GAINS
-    static constexpr u8  FIELD_COUNT   = 3;
-    static constexpr char     FIELD_NAMES[] = "kp,ki,kd";
-    static constexpr u8  FIELD_TYPES[] = {6, 6, 6};  // FieldType::F32 x3
+    static constexpr u8  SIZE      = 3u * sizeof(float);
+    static constexpr u8  FAMILY_ID = 0x00;   // std_msgs ailesi
+    static constexpr u8  TYPE_ID   = 0x0B;   // std_msgs-yerel: PID_GAINS
 
     float kp{0.0f};
     float ki{0.0f};
@@ -35,4 +33,4 @@ private:
 
 static_assert(sizeof(PidGains) == PidGains::SIZE, "PidGains: beklenmedik padding!");
 
-}  // namespace minros::std_msgs
+}  // namespace minros::interfaces::std_msgs

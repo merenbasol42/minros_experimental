@@ -1,19 +1,17 @@
 #pragma once
 #include <cstring>
-#include "msg_base.hpp"
+#include "minros/interfaces/msg_base.hpp"
 
-namespace minros::std_msgs {
+namespace minros::interfaces::geometry_msgs {
 
 struct Vector3 : MsgBase<Vector3> {
 
     // MsgBase'in from_bytes/to_bytes'i private deserialize/serialize'i cagirabilsin
     friend struct MsgBase<Vector3>;
 
-    static constexpr u8  SIZE          = 3u * sizeof(float);  // 12 byte
-    static constexpr u8  TYPE_ID       = 0x08;       // MsgTypeId::VECTOR3
-    static constexpr u8  FIELD_COUNT   = 3;
-    static constexpr char     FIELD_NAMES[] = "x,y,z";
-    static constexpr u8  FIELD_TYPES[] = {6, 6, 6};  // FieldType::F32 x3
+    static constexpr u8  SIZE      = 3u * sizeof(float);  // 12 byte
+    static constexpr u8  FAMILY_ID = 0x01;   // geometry_msgs ailesi
+    static constexpr u8  TYPE_ID   = 0x00;   // geometry_msgs-yerel: VECTOR3
 
     float x{0.0f};
     float y{0.0f};
@@ -37,4 +35,4 @@ private:
 
 static_assert(sizeof(Vector3) == Vector3::SIZE, "Vector3: beklenmedik padding!");
 
-}  // namespace minros::std_msgs
+}  // namespace minros::interfaces::geometry_msgs

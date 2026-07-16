@@ -16,8 +16,8 @@
 #include <cstdint>
 
 #include <minros/node.hpp>
-#include <minros/std_msgs/primitives.hpp>
-#include <minros/std_msgs/twist.hpp>
+#include <minros/interfaces/std_msgs/primitives.hpp>
+#include <minros/interfaces/geometry_msgs/twist.hpp>
 
 // ─── BytePipe: sabit boyutlu döngüsel tampon ──────────────────────────────────
 struct BytePipe {
@@ -76,7 +76,7 @@ void tearDown() {}
 static bool  t1_received = false;
 static float t1_value    = 0.0f;
 
-static void t1_on_float32(const minros::std_msgs::Float32& msg, void*)
+static void t1_on_float32(const minros::interfaces::std_msgs::Float32& msg, void*)
 {
     t1_received = true;
     t1_value    = msg.value;
@@ -93,10 +93,10 @@ void test_float32_best_effort()
     minros::Node<> node_a, node_b;
     connect(node_a, node_b, ab, ba);
 
-    auto pub = node_a.create_publisher<minros::std_msgs::Float32>(0x01);
-    node_b.create_subscription<minros::std_msgs::Float32>(0x01, { t1_on_float32, nullptr });
+    auto pub = node_a.create_publisher<minros::interfaces::std_msgs::Float32>(0x01);
+    node_b.create_subscription<minros::interfaces::std_msgs::Float32>(0x01, { t1_on_float32, nullptr });
 
-    minros::std_msgs::Float32 msg;
+    minros::interfaces::std_msgs::Float32 msg;
     msg.value = 3.14f;
 
     TEST_ASSERT_TRUE_MESSAGE(pub.publish(msg), "publish() false döndü");
@@ -114,7 +114,7 @@ void test_float32_best_effort()
 static bool  t2_received = false;
 static float t2_linear_x = 0.0f;
 
-static void t2_on_twist(const minros::std_msgs::Twist& msg, void*)
+static void t2_on_twist(const minros::interfaces::geometry_msgs::Twist& msg, void*)
 {
     t2_received = true;
     t2_linear_x = msg.linear.x;
@@ -131,12 +131,12 @@ void test_twist_reliable_with_ack()
     minros::Node<> node_a, node_b;
     connect(node_a, node_b, ab, ba);
 
-    auto pub = node_a.create_publisher<minros::std_msgs::Twist>(0x02, /*reliable=*/true);
-    node_b.create_subscription<minros::std_msgs::Twist>(
+    auto pub = node_a.create_publisher<minros::interfaces::geometry_msgs::Twist>(0x02, /*reliable=*/true);
+    node_b.create_subscription<minros::interfaces::geometry_msgs::Twist>(
         0x02, { t2_on_twist, nullptr }, /*reliable=*/true
     );
 
-    minros::std_msgs::Twist cmd;
+    minros::interfaces::geometry_msgs::Twist cmd;
     cmd.linear.x  = 0.5f;
     cmd.angular.z = 0.1f;
 
