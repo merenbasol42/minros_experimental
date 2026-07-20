@@ -11,6 +11,17 @@ requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [{ name = "Mustafa Eren BAŞOL" }]
 keywords = ["minros", "ros", "serial", "embedded", "pubsub", "robotics"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Communications",
+    "Topic :: Software Development :: Embedded Systems",
+]
+
+[project.urls]
+Homepage = "https://github.com/merenbasol42/minrospy"
+Repository = "https://github.com/merenbasol42/minrospy.git"
 
 [project.optional-dependencies]
 test = ["pytest"]
