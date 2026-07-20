@@ -1,0 +1,4 @@
+# tools/ host betiklerinin bağımlılıkları.
+#   pip install -r tools/requirements.txt
+minrospy>=0.1.0
+pyserial>=3.5

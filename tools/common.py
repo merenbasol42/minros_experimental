@@ -1,26 +1,21 @@
 """tools/ scriptleri için ortak yardımcılar.
 
-minrospy'yi sys.path'e ekler (repo kökünden çalıştırmaya gerek kalmadan) ve
 pyserial transportu, spin döngüleri, renkli çıktı, test vektörü gibi tekrar
 eden parçaları tek yerde toplar. Böylece her araç wire protokolünü elle
 yeniden yazmaz; doğrudan minrospy kullanır.
+
+Bağımlılıklar pip'ten gelir (bkz. tools/requirements.txt):
+    pip install -r tools/requirements.txt
 """
 
 import cmath
-import os
 import random
 import sys
 import time
 
 import serial
 
-# minrospy paketini import edilebilir yap (lib/minrospy, `minrospy` paketini içerir)
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_MINROSPY = os.path.normpath(os.path.join(_HERE, "..", "lib", "minrospy"))
-if _MINROSPY not in sys.path:
-    sys.path.insert(0, _MINROSPY)
-
-from minrospy import Transport  # noqa: E402
+from minrospy import Transport
 
 # ── ANSI renkleri ────────────────────────────────────────────────────────────
 BOLD = "\033[1m"
