@@ -30,6 +30,7 @@ from collections.abc import Callable
 
 from .core import wireframe
 from .overlays.logging.logger import Level, Logger
+from .overlays.parameters.params import ParamServer
 from .overlays.reliability.reliable import Reliable
 from .raw_node import RawNode, Transport
 
@@ -67,6 +68,9 @@ class Node:
         # Logger yalnızca PUBLISH eder (sink değil) -> broker subscriber slotu
         # tüketmez. Log ALMAK için host tarafında logging.LogSink kullanılır.
         self._logger = Logger(self._node, frame_data=max_frame_data)
+        # Parameters: PARAM_REQ'e abone olur, PARAM_RES'ten yanıt yollar
+        # (best-effort, node_ üzerinden). C++ Node ile simetrik.
+        self._params = ParamServer(self._node)
 
     # Log seviyeleri (logging.Level takma adı).
     LogLevel = Level
@@ -146,3 +150,14 @@ class Node:
 
     def log_fatal(self, msg) -> None:
         self._logger.fatal(msg)
+
+    # ── Parameters (get/set, CH247 REQ / CH246 RES) ───────────────────────
+    # Parametreyi host'a okunur/yazılır kılar (best-effort). msg, mevcut değeri
+    # tutan bir mesaj örneğidir; host SET yaptıkça güncel değer değişir.
+
+    def register_param(self, id: int, msg, read_only: bool = False) -> None:
+        self._params.register_param(id, msg, read_only)
+
+    def param_value(self, id: int):
+        """Kayıtlı parametrenin güncel değerini döndürür (mesaj örneği)."""
+        return self._params.value(id)

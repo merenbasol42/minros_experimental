@@ -2,6 +2,7 @@
 #include "minros/raw_node.hpp"
 #include "minros/overlays/reliability/reliable.hpp"
 #include "minros/overlays/logging/logger.hpp"
+#include "minros/overlays/parameters/params.hpp"
 
 #include <cstring>
 
@@ -13,9 +14,10 @@ namespace minros {
     //
     // Template parametreler:
     //   MAX_SUBS       — maksimum abonelik sayısı (varsayılan 16)
-    //                    Dahili broker'a ACK kanalı için +1 slot verilir.
+    //                    Dahili broker'a ACK + PARAM_REQ için +2 slot verilir.
     //   MAX_FRAME_DATA — frame DATA alanı maksimum uzunluğu (varsayılan 249)
     //   MAX_RELIABLE   — güvenilir publisher/subscriber başına maksimum kanal (varsayılan 8)
+    //   MAX_PARAMS     — kaydedilebilir maksimum parametre sayısı (varsayılan 8)
     //
     // Kullanım:
     //   Node<> node;
@@ -42,24 +44,34 @@ namespace minros {
     //   node.log_error("imu timeout");
     //   // Log ALMAK için host tarafında logging::LogSink kullanılır (minrospy).
     //
+    //   // Parameters (best-effort, CH247 REQ / CH246 RES) — host get/set eder
+    //   std_msgs::Float32 kp;
+    //   node.register_param(5, &kp);              // okunur/yazılır
+    //   node.register_param(6, &version, true);   // salt-okunur
+    //
     //   node.spin_once();   // loop() içinde
     //
     // ─────────────────────────────────────────────────────────────────────────
 
     template<u8 MAX_SUBS       = 16,
              u8 MAX_FRAME_DATA = core::wireframe::MAX_DATA_LEN,
-             u8 MAX_RELIABLE   = 8>
+             u8 MAX_RELIABLE   = 8,
+             u8 MAX_PARAMS     = 8>
     class Node {
         static_assert(MAX_SUBS > 0,   "MAX_SUBS en az 1 olmalı");
-        static_assert(MAX_SUBS < 255, "MAX_SUBS 255'ten küçük olmalı (ACK için +1 slot)");
+        static_assert(MAX_SUBS < 254, "MAX_SUBS 254'ten küçük olmalı (ACK + PARAM_REQ için +2 slot)");
 
-        // ACK kanalı dahili broker'da +1 slot tüketir.
-        using NodeT     = RawNode<static_cast<u8>(MAX_SUBS + 1u), MAX_FRAME_DATA>;
+        // Dahili broker'da +2 slot: ACK kanalı (reliability) + PARAM_REQ (parameters).
+        using NodeT     = RawNode<static_cast<u8>(MAX_SUBS + 2u), MAX_FRAME_DATA>;
         using ReliableT = overlays::reliability::Reliable<NodeT, MAX_RELIABLE, MAX_RELIABLE>;
         // Logger yalnızca PUBLISH eder (sink değil) → broker subscriber slotu
         // tüketmez ve zero-buffer'dır (NodeT* + Level). Log almak için host
         // tarafında logging::LogSink standalone kullanılır (minrospy Python sink).
         using LoggerT   = overlays::logging::Logger<NodeT, MAX_FRAME_DATA>;
+        // Params, PARAM_REQ'e abone olur (1 broker slotu) ve PARAM_RES'ten yanıt
+        // yollar. Node facade'ında best-effort'tur (node_ üzerinden); güvenilir
+        // parametre isteyen standalone Params'ı reliability overlay'i üstüne kurar.
+        using ParamsT   = overlays::parameters::Params<NodeT, MAX_PARAMS>;
 
     public:
         // Log seviyeleri (overlays::logging::Level takma adı).
@@ -117,7 +129,8 @@ namespace minros {
 
 
         // ── Kurucu ───────────────────────────────────────────────────────
-        Node() : transport(node_.transport), reliable_(node_), logger_(node_) {}
+        Node() : transport(node_.transport), reliable_(node_), logger_(node_),
+                 params_(node_) {}
 
         Node(const Node&)            = delete;
         Node& operator=(const Node&) = delete;
@@ -179,6 +192,21 @@ namespace minros {
         void log_error(const char* s) { logger_.error(s); }
         void log_fatal(const char* s) { logger_.fatal(s); }
 
+
+        // ── Parameters (get/set, CH247 REQ / CH246 RES) ───────────────────
+        //
+        // Parametreyi host'a okunur/yazılır kılar. storage, MsgT tipinde gerçek
+        // değişkendir (kopya yok); host GET/SET yaptıkça doğrudan güncellenir.
+        // Best-effort'tur (bkz. ParamsT notu).
+        //
+        //   std_msgs::Float32 kp;
+        //   node.register_param(5, &kp);              // okunur/yazılır
+        //   node.register_param(6, &version, true);   // salt-okunur
+        template<typename MsgT>
+        bool register_param(u8 id, MsgT* storage, bool read_only = false) {
+            return params_.register_param(id, storage, read_only);
+        }
+
     private:
         // ── Tip silme (type erasure) — abonelik için ─────────────────────
         //
@@ -209,6 +237,7 @@ namespace minros {
         NodeT         node_;
         ReliableT     reliable_;
         LoggerT       logger_;
+        ParamsT       params_;
         TypedSubEntry typed_subs_[MAX_SUBS]{};
         u8            typed_sub_count_ = 0;
     };
