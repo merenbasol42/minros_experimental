@@ -3,6 +3,7 @@
 #include <minros/raw_node.hpp>
 #include <minros/node.hpp>
 #include <minros/overlays/reliability/reliable.hpp>
+#include <minros/overlays/parameters/params.hpp>
 #include <minros/interfaces/geometry_msgs/vector3.hpp>
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -31,16 +32,23 @@ static constexpr u8 CH_UNREL_PUB = 1;
 static constexpr u8 CH_REL_SUB   = 2;
 static constexpr u8 CH_REL_PUB   = 3;
 
+// Parametre: echo gain'i (eksen-başına çarpan). Host PARAM_REQ/RES üzerinden
+// get/set eder. Varsayılan (2,2,2) → eski ×2 davranışı. Her iki modda da aynı.
+static constexpr u8 PARAM_GAIN = 0;
+
 using Vector3 = minros::interfaces::geometry_msgs::Vector3;
 
-// Echo dönüşümü: her bileşeni 2 ile çarpar. (×2, kimlik echo yerine, gidiş-dönüş
-// veri bütünlüğünü doğrulamak için — Python testleri payload == girdi*2 bekler.
-// Saf echo isteniyorsa çarpanı kaldır.)
+// gain — param id 0. Host set ettikçe değeri değişir; echo_of onu okur.
+static Vector3 gain;
+
+// Echo dönüşümü: her bileşeni gain ile çarpar. (Sabit ×2 yerine çalışma-anı
+// parametresi — Python testleri payload == girdi*gain bekler. Varsayılan gain
+// (2,2,2) eski davranışı korur; host set ile değiştirilebilir.)
 static Vector3 echo_of(const Vector3& m) {
     Vector3 o;
-    o.x = m.x * 2.0f;
-    o.y = m.y * 2.0f;
-    o.z = m.z * 2.0f;
+    o.x = m.x * gain.x;
+    o.y = m.y * gain.y;
+    o.z = m.z * gain.z;
     return o;
 }
 
@@ -81,6 +89,9 @@ void setup() {
     Serial.begin(115200);
     node.transport = serial_transport;
 
+    gain.x = gain.y = gain.z = 2.0f;                  // varsayılan ×2
+    node.register_param<Vector3>(PARAM_GAIN, &gain);  // Node facade param sunucusu
+
     unrel_pub = node.create_publisher<Vector3>(CH_UNREL_PUB);
     rel_pub   = node.create_publisher<Vector3>(CH_REL_PUB, /*reliable=*/true);
 
@@ -100,6 +111,7 @@ void loop() {
 
 static minros::RawNode<>                 node;
 static minros::overlays::reliability::Reliable  rel{ node };   // aynı node'a takılır (ACK kanalına abone)
+static minros::overlays::parameters::Params     params{ node };  // PARAM_REQ'e abone (CTAD)
 
 // Reliable publisher buffer'ı ACK gelene kadar SABİT kalmalı (Reliable pointer tutar).
 static u8 rel_tx[Vector3::SIZE];
@@ -130,6 +142,9 @@ static void on_rel_bytes(u8* payload, u8 len, void*) {
 void setup() {
     Serial.begin(115200);
     node.transport = serial_transport;
+
+    gain.x = gain.y = gain.z = 2.0f;                  // varsayılan ×2
+    params.register_param(PARAM_GAIN, &gain);         // host get/set eder
 
     node.subscribe(CH_UNREL_SUB, { on_unrel_bytes, nullptr });   // best-effort
     rel.subscribe(CH_REL_SUB,    { on_rel_bytes,   nullptr });   // reliable (dedup + ACK)
