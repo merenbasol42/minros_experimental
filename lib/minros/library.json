@@ -1,0 +1,20 @@
+{
+  "name": "minros",
+  "version": "0.1.0",
+  "description": "ROS benzeri hafif, byte-tabanlı gömülü mesajlaşma protokolü (pub/sub, reliability + logging + parameters overlay'leri)",
+  "keywords": "ros, messaging, embedded, pubsub, serial",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/merenbasol42/minros.git"
+  },
+  "authors": [
+    {
+      "name": "Mustafa Eren Başol",
+      "url": "https://github.com/merenbasol42"
+    }
+  ],
+  "license": "MIT",
+  "frameworks": "*",
+  "platforms": "*",
+  "headers": "minros/node.hpp"
+}
