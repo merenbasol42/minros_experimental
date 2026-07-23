@@ -2,11 +2,11 @@
 //
 // minros'u, conformance/generate.py'nin ürettiği TARAFSIZ altın vektörlere
 // (conformance/vectors.hpp) karşı sınar. Aynı vektörlere Python tarafı da
-// (lib/minrospy/tests/test_conformance.py) sınanır; iki implementasyon
+// (host/lib/minrospy/tests/test_conformance.py) sınanır; iki implementasyon
 // birbirinden kayarsa testlerden biri kırmızıya döner.
 //
 // PlatformIO/Unity gerektirmez — doğrudan derlenip çalıştırılır:
-//   g++ -std=c++17 -I lib/minros conformance/cpp/test_conformance.cpp -o /tmp/ct && /tmp/ct
+//   g++ -std=c++17 -I firmware/lib/minros conformance/cpp/test_conformance.cpp -o /tmp/ct && /tmp/ct
 //
 // Çıkış kodu: 0 = tüm vektörler geçti, 1 = en az bir uyuşmazlık.
 

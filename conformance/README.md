@@ -36,8 +36,8 @@ core'un opak `head` öneki olarak verilir (core SEQ bilmez); Python tarafında
 | `vectors.json` | Üretilen vektörler — Python testi okur (üretilmiş, commit'li) |
 | `vectors.hpp` | Üretilen C++ header — C++ testi include eder (üretilmiş, commit'li) |
 | `cpp/test_conformance.cpp` | minros'u vektörlere karşı sınar (PlatformIO gerekmez) |
-| `py/test_conformance.py` | minrospy'yi vektörlere karşı sınar (pytest, `lib/minrospy`'den local kurulur) |
-| `run.sh` | Üret + iki tarafı da koştur (ikisini de `lib/` altındaki submodule'lardan) |
+| `py/test_conformance.py` | minrospy'yi vektörlere karşı sınar (pytest, `host/lib/minrospy`'den local kurulur) |
+| `run.sh` | Üret + iki tarafı da koştur (`firmware/lib/minros` ve `host/lib/minrospy` submodule'larından) |
 
 > `vectors.json` ve `vectors.hpp` **üretilmiş** dosyalardır. Vektör eklemek için
 > `generate.py`'yi düzenleyip yeniden üret — bu dosyaları elle düzenleme.
@@ -49,12 +49,12 @@ core'un opak `head` öneki olarak verilir (core SEQ bilmez); Python tarafında
 ./conformance/run.sh
 
 # yalnız Python
-pip install -e lib/minrospy
+pip install -e host/lib/minrospy
 python3 -m pytest conformance/py/test_conformance.py -v
 
 # yalnız C++
 python3 conformance/generate.py   # vektörler güncel değilse
-g++ -std=c++17 -I lib/minros conformance/cpp/test_conformance.cpp -o /tmp/ct && /tmp/ct
+g++ -std=c++17 -I firmware/lib/minros conformance/cpp/test_conformance.cpp -o /tmp/ct && /tmp/ct
 ```
 
 ## Yeni mesaj/alan eklerken

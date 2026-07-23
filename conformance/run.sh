@@ -7,12 +7,11 @@
 #
 # İki implementasyon birbirinden kaymışsa ilgili taraf kırmızı döner.
 #
-# minros/minrospy artık lib/minros ve lib/minrospy altında git submodule
-# olarak yaşıyor (bkz. ../.gitmodules) — yani buradaki testler her zaman
-# local, henüz publish edilmemiş değişiklikleri sınar:
-#   • C++ header'ları:  lib/minros
+# minros/minrospy git submodule olarak yaşıyor (bkz. ../.gitmodules) — yani
+# buradaki testler her zaman local, henüz publish edilmemiş değişiklikleri sınar:
+#   • C++ header'ları:  firmware/lib/minros
 #     Elle geçersiz kılmak için:  MINROS_INC=<minros_kök> conformance/run.sh
-#   • Python paketi:    geçici bir venv'e lib/minrospy'den editable kurulur
+#   • Python paketi:    geçici bir venv'e host/lib/minrospy'den editable kurulur
 #     (sistem python'unu / ROS ortamını hiç kirletmez). Çıkışta silinir.
 #     Elle geçersiz kılmak için: MINROSPY_SRC=<minrospy_kök> conformance/run.sh
 set -euo pipefail
@@ -28,7 +27,7 @@ echo "== 1/3 vektörleri üret =="
 python3 "$HERE/generate.py"
 
 # ── minros C++ header kökünü çöz ─────────────────────────────────────────────
-MINROS_INC="${MINROS_INC:-$ROOT/lib/minros}"
+MINROS_INC="${MINROS_INC:-$ROOT/firmware/lib/minros}"
 if [ ! -f "$MINROS_INC/minros/core/wireframe.hpp" ]; then
     echo "hata: $MINROS_INC altında minros bulunamadı." >&2
     echo "      önce 'git submodule update --init' çalıştır (ya da MINROS_INC ile elle göster)." >&2
@@ -41,7 +40,7 @@ g++ -std=c++17 -Wall -I "$MINROS_INC" "$HERE/cpp/test_conformance.cpp" -o "$BIN"
 "$BIN"
 
 # ── izole venv → local minrospy (editable) ───────────────────────────────────
-MINROSPY_SRC="${MINROSPY_SRC:-$ROOT/lib/minrospy}"
+MINROSPY_SRC="${MINROSPY_SRC:-$ROOT/host/lib/minrospy}"
 if [ ! -f "$MINROSPY_SRC/pyproject.toml" ]; then
     echo "hata: $MINROSPY_SRC altında minrospy bulunamadı." >&2
     echo "      önce 'git submodule update --init' çalıştır (ya da MINROSPY_SRC ile elle göster)." >&2

@@ -1,0 +1,7 @@
+# host/ betiklerinin bağımlılıkları.
+#   pip install -r host/requirements.txt
+#
+# minrospy PyPI'dan değil, lib/minrospy submodule'ından editable kurulur —
+# bu repo publish edilmemiş minrospy değişikliklerini denemek için var.
+-e ./lib/minrospy
+pyserial>=3.5

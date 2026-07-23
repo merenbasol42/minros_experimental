@@ -1,72 +1,52 @@
 # minros_experimental
 
-ESP32-S3 üzerinde [minros](https://github.com/merenbasol42/minros) kütüphanesini
-denemek için hazırlanmış PlatformIO projesidir. minros ve Python portu
-`minrospy`, kendi ayrı GitHub repolarında yaşamaya devam ediyor ama buraya
-**git submodule** olarak (`lib/minros`, `lib/minrospy`) bağlı — yani ikisini
-birlikte, publish etmeden, tek yerden değiştirip test edebilirsin.
+[minros](https://github.com/merenbasol42/minros) (C++, gömülü) ve Python portu
+[minrospy](https://github.com/merenbasol42/minrospy)'yi birlikte geliştirip,
+publish etmeden önce gerçek donanımla ve birbirlerine karşı test etmek için
+hazırlanmış çalışma alanı. Üç bağımsız alt proje halinde bölünmüş:
 
-## Hedef Donanım
+| Klasör | Ne | Detay |
+|---|---|---|
+| [firmware/](firmware/) | ESP32-S3 üzerinde çalışan deneme firmware'i (PlatformIO) | [firmware/README.md](firmware/README.md) |
+| [host/](host/) | Gerçek karta karşı seri port üzerinden çalışan Python betikleri | [host/README.md](host/README.md) |
+| [conformance/](conformance/) | `minros` ↔ `minrospy` wire-protokolü uyumluluk testleri | [conformance/README.md](conformance/README.md) |
 
-| Parametre | Değer |
-|---|---|
-| Board | ESP32-S3 Box |
-| Framework | Arduino |
-| C++ standardı | C++17 |
+## Neden üç ayrı klasör?
 
-## Proje Yapısı
+`firmware/` ve `host/` birbirinden bağımsız çalıştırılabilir projeler (biri
+PlatformIO, biri Python) — her biri kendi bağımlılık zincirine ve kendi
+`minros`/`minrospy` submodule'ına sahip:
 
-```
-minros_experimental/
-├── src/main.cpp         ← deneme firmware'i (echo + parameters)
-├── tools/               ← host tarafı test betikleri (minros_serial.py, …)
-├── test/ conformance/   ← minros/minrospy'e karşı testler
-├── lib/minros/          ← git submodule → github.com/merenbasol42/minros
-├── lib/minrospy/        ← git submodule → github.com/merenbasol42/minrospy
-└── platformio.ini       ← lib/ otomatik taranır, lib_deps gerekmez
-```
+- `firmware/lib/minros` — submodule, `minros`'un kendisi.
+- `host/lib/minrospy` — submodule, `minrospy`'nin kendisi.
 
-## Bağımlılıklar — submodule olarak
-
-**C++ (minros)** ve **Python (minrospy)**, kendi repolarının birebir
-checkout'ları olarak `lib/minros` ve `lib/minrospy` altında yaşıyor. Bu bir
-kopya değil — o klasörlerin içi gerçekten o repoların kendisi:
-
-```bash
-# taze klon (submodule'lerle birlikte)
-git clone --recurse-submodules git@github.com:merenbasol42/minros_experimental.git
-
-# ya da zaten klonlandıysa
-git submodule update --init
-
-# ana branch'lerinin ucuna ilerlet
-git submodule update --remote
-```
-
-**Geliştirme akışı**: `lib/minros` veya `lib/minrospy` içine gir, normal
-şekilde değiştir, orada `git commit` + `git push` at — bu **doğrudan** gerçek
-`minros`/`minrospy` reposuna gider, ayrı bir yayın/senkron adımı yok. Sonra bu
-reponun kökünde `git add lib/minros lib/minrospy && git commit` ile
-"şu an hangi commit'e bakıyorum" bilgisini (pointer) güncelle.
-
-`tools/requirements.txt` hâlâ pip üzerinden PyPI'daki minrospy'yi kurar (host
-test betikleri için); local geliştirme + conformance testi ise her zaman
-`lib/minrospy`'yi kullanır (bkz. `conformance/run.sh`).
+`conformance/` ikisini de aynı anda sınadığı için doğası gereği her iki
+submodule'a da erişir (bkz. [conformance/README.md](conformance/README.md)).
 
 ## Başlangıç
 
 ```bash
-pio run -t upload
-pio device monitor
+# taze klon (submodule'lerle birlikte)
+git clone --recurse-submodules git@github.com:merenbasol42/minros_experimental.git
+# ya da zaten klonlandıysa
+git submodule update --init
+
+# firmware
+cd firmware && pio run -t upload && pio device monitor
+
+# host (ayrı terminalde, kart bağlıyken)
+cd host && pip install -r requirements.txt && python3 minros_serial.py
+
+# conformance
+./conformance/run.sh
 ```
 
 ## Notlar
 
-- minros ve minrospy'nin kendi GitHub sayfaları / PyPI yayını değişmedi:
+- `minros` ve `minrospy`'nin kendi GitHub sayfaları / PyPI yayını değişmedi:
   [merenbasol42/minros](https://github.com/merenbasol42/minros),
   [merenbasol42/minrospy](https://github.com/merenbasol42/minrospy) →
   [pypi.org/project/minrospy](https://pypi.org/project/minrospy/). Bu repo
   ikisini **birlikte geliştirip test etmek** için ortak bir çalışma alanı.
-- Host tarafı denemeler için `tools/minros_serial.py` (echo + `<p>` ile param set).
-- İki implementasyonun aynı wire protokolüne uyduğunu doğrulamak için
-  `./conformance/run.sh` — her zaman `lib/` altındaki local kaynağı sınar.
+- Submodule geliştirme akışı (commit/push, pointer güncelleme) için
+  [firmware/README.md](firmware/README.md) ve [host/README.md](host/README.md).

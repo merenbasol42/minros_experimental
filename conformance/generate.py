@@ -7,7 +7,7 @@ Python standart kütüphanesinden (struct) — hesaplar. Böylece iki taraf da
 aynı tarafsız "altın" vektörlere karşı sınanır; biri kayarsa testi kırılır.
 
 Çıktılar:
-    conformance/vectors.json   — Python testi (lib/minrospy/tests) okur
+    conformance/vectors.json   — Python testi (host/lib/minrospy/tests) okur
     conformance/vectors.hpp    — C++ testi (conformance/cpp) include eder
 
 Kullanım:
