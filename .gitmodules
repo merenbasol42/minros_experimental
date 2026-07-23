@@ -1,0 +1,8 @@
+[submodule "lib/minros"]
+	path = lib/minros
+	url = git@github.com:merenbasol42/minros.git
+	branch = main
+[submodule "lib/minrospy"]
+	path = lib/minrospy
+	url = git@github.com:merenbasol42/minrospy.git
+	branch = main
