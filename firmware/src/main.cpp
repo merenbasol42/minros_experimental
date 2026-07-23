@@ -6,6 +6,9 @@
 #include <minros/overlays/parameters/params.hpp>
 #include <minros/interfaces/geometry_msgs/vector3.hpp>
 
+using minros::u8;
+using minros::u32;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Düğüm tipi seçimi — YALNIZCA birini seç.
 //
@@ -85,12 +88,17 @@ static void on_rel(const Vector3& msg, void*) {
     rel_pub.publish(echo_of(msg));                 // reliable echo (uçuştaysa drop'lanır)
 }
 
+// Parametre tablosu artık derleme-zamanı constexpr (flash'ta yaşar); &gain statik
+// ömürlü olduğu için adresi geçerli bir constant expression'dır.
+static constexpr auto PARAM_TABLE = minros::overlays::parameters::table(
+    minros::overlays::parameters::rw<PARAM_GAIN>(&gain));
+
 void setup() {
     Serial.begin(115200);
     node.transport = serial_transport;
 
     gain.x = gain.y = gain.z = 2.0f;                  // varsayılan ×2
-    node.register_param<Vector3>(PARAM_GAIN, &gain);  // Node facade param sunucusu
+    node.set_params(PARAM_TABLE);                     // Node facade param sunucusu
 
     unrel_pub = node.create_publisher<Vector3>(CH_UNREL_PUB);
     rel_pub   = node.create_publisher<Vector3>(CH_REL_PUB, /*reliable=*/true);
@@ -111,7 +119,12 @@ void loop() {
 
 static minros::RawNode<>                 node;
 static minros::overlays::reliability::Reliable  rel{ node };   // aynı node'a takılır (ACK kanalına abone)
-static minros::overlays::parameters::Params     params{ node };  // PARAM_REQ'e abone (CTAD)
+
+// Parametre tablosu artık derleme-zamanı constexpr (flash'ta yaşar); &gain statik
+// ömürlü olduğu için adresi geçerli bir constant expression'dır.
+static constexpr auto PARAM_TABLE = minros::overlays::parameters::table(
+    minros::overlays::parameters::rw<PARAM_GAIN>(&gain));
+static minros::overlays::parameters::Params     params{ node, PARAM_TABLE };  // PARAM_REQ'e abone, tablo CTAD ile bağlı
 
 // Reliable publisher buffer'ı ACK gelene kadar SABİT kalmalı (Reliable pointer tutar).
 static u8 rel_tx[Vector3::SIZE];
@@ -143,8 +156,7 @@ void setup() {
     Serial.begin(115200);
     node.transport = serial_transport;
 
-    gain.x = gain.y = gain.z = 2.0f;                  // varsayılan ×2
-    params.register_param(PARAM_GAIN, &gain);         // host get/set eder
+    gain.x = gain.y = gain.z = 2.0f;                  // varsayılan ×2 (tablo zaten &gain'e bağlı)
 
     node.subscribe(CH_UNREL_SUB, { on_unrel_bytes, nullptr });   // best-effort
     rel.subscribe(CH_REL_SUB,    { on_rel_bytes,   nullptr });   // reliable (dedup + ACK)
