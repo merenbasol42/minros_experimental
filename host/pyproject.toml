@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "minros-tools"
+version = "0.1.0"
+description = "Gerçek karta karşı minrospy denemeleri — host tarafı test/tanılama araçları"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pyserial>=3.5",
+]
+
+[project.scripts]
+minros-serial = "minros_tools.serial_monitor:main"
+minros-latency = "minros_tools.latency:main"
+minros-latency-rel = "minros_tools.latency_rel:main"
+minros-throughput = "minros_tools.throughput:main"
+minros-ack-test = "minros_tools.ack_test:main"
+
+[tool.setuptools.packages.find]
+include = ["minros_tools*"]

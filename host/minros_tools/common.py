@@ -1,11 +1,11 @@
-"""tools/ scriptleri için ortak yardımcılar.
+"""host/ araçları için ortak yardımcılar.
 
 pyserial transportu, spin döngüleri, renkli çıktı, test vektörü gibi tekrar
 eden parçaları tek yerde toplar. Böylece her araç wire protokolünü elle
 yeniden yazmaz; doğrudan minrospy kullanır.
 
-Bağımlılıklar pip'ten gelir (bkz. tools/requirements.txt):
-    pip install -r tools/requirements.txt
+Bağımlılıklar pip'ten gelir (bkz. host/requirements.txt):
+    pip install -r host/requirements.txt
 """
 
 import cmath
@@ -90,3 +90,23 @@ def complex_vectors(n: int, seed: int = 42) -> list[tuple[float, float, float]]:
         c1, c2 = cmath.rect(r1, t1), cmath.rect(r2, t2)
         out.append((c1.real, c1.imag, c2.real))
     return out
+
+
+# ── RTT ölçüm yardımcıları (latency.py + latency_rel.py ortak) ───────────────
+def approx(a: float, b: float, eps: float = 1e-3) -> bool:
+    return abs(a - b) <= eps * max(1.0, abs(b))
+
+
+def print_latency_report(rounds: int, latencies: list[float], errors: int) -> None:
+    """"Sonuçlar: Ortalama/Min/Max/Kayıp" özetini basar."""
+    print()
+    if latencies:
+        avg = sum(latencies) / len(latencies)
+        print(f"{BOLD}Sonuçlar ({len(latencies)}/{rounds} başarılı):{RESET}")
+        print(f"  {CYAN}Ortalama : {avg:.2f} ms{RESET}")
+        print(f"  Min      : {min(latencies):.2f} ms")
+        print(f"  Max      : {max(latencies):.2f} ms")
+        if errors:
+            print(f"  {RED}Kayıp    : {errors}{RESET}")
+    else:
+        print(f"{RED}Hiçbir yanıt alınamadı.{RESET}")

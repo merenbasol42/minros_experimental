@@ -13,14 +13,16 @@ edilmemiş değişiklikler test edilir.
 
 ```
 host/
-├── common.py              ← ortak yardımcılar (pyserial transport, spin döngüsü, …)
-├── minros_serial.py       ← seri monitör: Vector3 gönder/al, terminalde göster
-├── minros_latency.py      ← gecikme ölçümü
-├── minros_latency_rel.py  ← reliable overlay üzerinden gecikme ölçümü
-├── minros_throughput.py   ← throughput ölçümü
-├── minros_ack_test.py     ← reliability/ACK testi
+├── pyproject.toml           ← minros-tools paketi + console_scripts tanımı
 ├── requirements.txt
-└── lib/minrospy/          ← git submodule → github.com/merenbasol42/minrospy
+├── minros_tools/             ← paket
+│   ├── common.py             ← ortak yardımcılar (pyserial transport, spin döngüsü, …)
+│   ├── serial_monitor.py     ← seri monitör: Vector3 gönder/al, terminalde göster
+│   ├── latency.py            ← gecikme ölçümü
+│   ├── latency_rel.py        ← reliable overlay üzerinden gecikme ölçümü
+│   ├── throughput.py         ← throughput ölçümü
+│   └── ack_test.py           ← reliability/ACK testi
+└── lib/minrospy/             ← git submodule → github.com/merenbasol42/minrospy
 ```
 
 ## Kurulum
@@ -28,7 +30,7 @@ host/
 ```bash
 cd host
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt   # minrospy'yi lib/minrospy'den editable kurar
+pip install -r requirements.txt   # minrospy'yi lib/minrospy'den, minros-tools'u host/'un kendisinden editable kurar
 ```
 
 **Geliştirme akışı**: `lib/minrospy` içine gir, normal şekilde değiştir,
@@ -38,10 +40,15 @@ git commit` ile pointer'ı güncelle.
 
 ## Çalıştırma
 
-Kart `firmware/` ile flashlanmış ve seri porta bağlıyken:
+Kart `firmware/` ile flashlanmış ve seri porta bağlıyken (kurulumdan sonra
+komutlar PATH'te hazır):
 
 ```bash
-python3 minros_serial.py [PORT] [BAUD]   # varsayılan: /dev/ttyACM0 115200
+minros-serial [PORT] [BAUD]       # seri monitör, varsayılan: /dev/ttyACM0 115200
+minros-latency [PORT] [BAUD]      # gecikme ölçümü
+minros-latency-rel [PORT] [BAUD]  # reliable overlay üzerinden gecikme ölçümü
+minros-throughput [PORT] [BAUD] [MESAJ_SAYISI] [HEDEF_RATE_MSG_S]
+minros-ack-test [PORT] [BAUD]     # reliability/ACK testi
 ```
 
 ## Notlar

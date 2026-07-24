@@ -3,5 +3,7 @@
 #
 # minrospy PyPI'dan değil, lib/minrospy submodule'ından editable kurulur —
 # bu repo publish edilmemiş minrospy değişikliklerini denemek için var.
+# `-e .` ise host/'un kendisini (minros_tools paketi + minros-serial,
+# minros-latency, ... komutları) editable kurar, bkz. pyproject.toml.
 -e ./lib/minrospy
-pyserial>=3.5
+-e .

@@ -9,21 +9,18 @@ minros ACK mekanizması testi.
 Bu test, reliability'nin DUPLICATE retransmit'lerini gözlemlemesi gerektiğinden
 ham RawNode kullanır (Reliable overlay otomatik ACK + dedup yapıp tam da test edileni
 gizlerdi). Frame kurma/parse ve CRC minrospy core'a; seq ve ACK formatı ise
-minrospy.reliability.protocol'a aittir — elle crc8/build_frame yoktur.
+minrospy.overlays.reliability.protocol'a aittir — elle crc8/build_frame yoktur.
 
 Kullanım:
-    python3 minros_ack_test.py [PORT] [BAUD]
+    minros-ack-test [PORT] [BAUD]
 """
 
-import os
-import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import common as c
+from minros_tools import common as c
 
 from minrospy import RawNode
-from minrospy.reliability import protocol
+from minrospy.overlays.reliability import protocol
 from minrospy.interfaces.geometry_msgs import Vector3
 
 CH_SEND = 2  # cihaz reliable sub

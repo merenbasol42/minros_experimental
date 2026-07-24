@@ -6,19 +6,17 @@ CH_SEND'e Vector3 akıtır, CH_RECV echo'larını arka planda sayar. Protokol
 minrospy ile yönetilir.
 
 Kullanım:
-    python3 minros_throughput.py [PORT] [BAUD] [MESAJ_SAYISI] [HEDEF_RATE_MSG_S]
+    minros-throughput [PORT] [BAUD] [MESAJ_SAYISI] [HEDEF_RATE_MSG_S]
 
 Varsayılan: /dev/ttyACM0 115200 1000 500
 """
 
-import os
 import random
 import sys
 import threading
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import common as c
+from minros_tools import common as c
 
 from minrospy import Node
 from minrospy.interfaces.geometry_msgs import Vector3
@@ -26,11 +24,13 @@ from minrospy.interfaces.geometry_msgs import Vector3
 CH_SEND = 0  # cihaz unreliable sub
 CH_RECV = 1  # cihaz unreliable pub (echo)
 
+DEFAULT_RATE = 5000
+DEFAULT_MSGS = DEFAULT_RATE * 5
 
 def main():
     port, baud = c.parse_args()
-    n_msgs = int(sys.argv[3]) if len(sys.argv) > 3 else 1000
-    target_rate = int(sys.argv[4]) if len(sys.argv) > 4 else 500  # msg/s
+    n_msgs = int(sys.argv[3]) if len(sys.argv) > 3 else DEFAULT_MSGS
+    target_rate = int(sys.argv[4]) if len(sys.argv) > 4 else DEFAULT_RATE  # msg/s
     interval = 1.0 / target_rate
 
     ser = c.open_serial(port, baud, timeout=0.1)

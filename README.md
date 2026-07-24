@@ -35,7 +35,7 @@ git submodule update --init
 cd firmware && pio run -t upload && pio device monitor
 
 # host (ayrı terminalde, kart bağlıyken)
-cd host && pip install -r requirements.txt && python3 minros_serial.py
+cd host && pip install -r requirements.txt && minros-serial
 
 # conformance
 ./conformance/run.sh

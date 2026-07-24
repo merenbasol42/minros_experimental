@@ -5,7 +5,7 @@ minros serial monitor — Vector3 gönderir ve alır, terminalde gösterir.
 Protokol minrospy ile yönetilir (elle frame kurma/parse yok).
 
 Kullanım:
-    python3 minros_serial.py [PORT] [BAUD]
+    minros-serial [PORT] [BAUD]
 
 Varsayılan: /dev/ttyACM0 115200
 
@@ -15,17 +15,15 @@ Komutlar (çalışırken):
     q           → çık
 """
 
-import os
-import sys
 import threading
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import common as c
+from minros_tools import common as c
 
 from minrospy import Node
 from minrospy.interfaces.geometry_msgs import Vector3
 from minrospy.overlays.parameters import ParamClient, protocol as pp
+from minrospy.overlays.logging import LogSink, Level
 
 CH_SEND = 0x00
 CH_RECV = 0x01
@@ -33,9 +31,22 @@ CH_RECV = 0x01
 PARAM_PREFIX = "<p>"
 PARAM_ID = 0
 
+LOG_LEVEL_COLOR = {
+    Level.DEBUG: c.RESET,
+    Level.INFO: c.CYAN,
+    Level.WARN: c.YELLOW,
+    Level.ERROR: c.RED,
+    Level.FATAL: c.RED,
+}
+
 
 def fmt_v3(v: Vector3) -> str:
     return f"x={v.x:+.4f}  y={v.y:+.4f}  z={v.z:+.4f}"
+
+
+def _ts() -> str:
+    ms = int(time.time() * 1000) % 1000
+    return time.strftime("%H:%M:%S") + f".{ms:03d}"
 
 
 def main():
@@ -46,29 +57,34 @@ def main():
     node.transport = c.make_transport(ser)
 
     def on_recv(msg: Vector3):
-        ms = int(time.time() * 1000) % 1000
-        ts = time.strftime("%H:%M:%S") + f".{ms:03d}"
-        print(f"{c.CYAN}[{ts}] ← ch=0x{CH_RECV:02X}  {fmt_v3(msg)}{c.RESET}")
+        print(f"{c.CYAN}[{_ts()}] ← ch=0x{CH_RECV:02X}  {fmt_v3(msg)}{c.RESET}")
 
     node.create_subscription(Vector3, CH_RECV, on_recv)
     pub = node.create_publisher(Vector3, CH_SEND)
 
     # Param client — alttaki ham node üzerinden çalışır (host tarafı).
     client = ParamClient(node._node)
+    client.register_type(PARAM_ID, Vector3)
 
     def on_value(pid: int, msg):
-        ms = int(time.time() * 1000) % 1000
-        ts = time.strftime("%H:%M:%S") + f".{ms:03d}"
-        print(f"{c.GREEN}[{ts}] ✓ param {pid} = {fmt_v3(msg)}{c.RESET}")
+        print(f"{c.GREEN}[{_ts()}] ✓ param {pid} = {fmt_v3(msg)}{c.RESET}")
 
     def on_error(pid: int, code: int):
         name = pp.ErrCode(code).name if code in pp.ErrCode._value2member_map_ else code
-        ms = int(time.time() * 1000) % 1000
-        ts = time.strftime("%H:%M:%S") + f".{ms:03d}"
-        print(f"{c.YELLOW}[{ts}] ✗ param {pid} hata: {name}{c.RESET}")
+        print(f"{c.YELLOW}[{_ts()}] ✗ param {pid} hata: {name}{c.RESET}")
 
     client.on_value = on_value
     client.on_error = on_error
+
+    # Log sink — firmware'den gelen minros log satırlarını [minros] etiketiyle basar.
+    log_sink = LogSink(node._node)
+
+    def on_log(level: Level, msg: bytes):
+        color = LOG_LEVEL_COLOR.get(level, c.RESET)
+        text = msg.decode(errors="replace")
+        print(f"{color}[{_ts()}] [minros] {level.name}: {text}{c.RESET}")
+
+    log_sink.subscribe(on_log)
 
     print(f"{c.BOLD}minros serial monitor — {port} @ {baud}{c.RESET}")
     print("Gönder: <x> <y> <z>   Param set: <p> <x> <y> <z>   Çık: q\n")
@@ -103,15 +119,12 @@ def main():
                 print("Sayısal değer giriniz.")
                 continue
 
-            ms = int(time.time() * 1000) % 1000
-            ts = time.strftime("%H:%M:%S") + f".{ms:03d}"
-
             if is_param:
                 client.set(PARAM_ID, Vector3(x, y, z))
-                print(f"{c.GREEN}[{ts}] → SET param {PARAM_ID}  {fmt_v3(Vector3(x, y, z))}{c.RESET}")
+                print(f"{c.GREEN}[{_ts()}] → SET param {PARAM_ID}  {fmt_v3(Vector3(x, y, z))}{c.RESET}")
             else:
                 pub.publish(Vector3(x, y, z))
-                print(f"{c.GREEN}[{ts}] → ch=0x{CH_SEND:02X}  {fmt_v3(Vector3(x, y, z))}{c.RESET}")
+                print(f"{c.GREEN}[{_ts()}] → ch=0x{CH_SEND:02X}  {fmt_v3(Vector3(x, y, z))}{c.RESET}")
 
     except (EOFError, KeyboardInterrupt):
         pass
