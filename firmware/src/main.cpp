@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <cstdio>
 
 #include <minros/raw_node.hpp>
 #include <minros/node.hpp>
@@ -8,6 +9,9 @@
 
 using minros::u8;
 using minros::u32;
+
+namespace param       = minros::overlays::parameters;
+namespace reliability = minros::overlays::reliability;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Düğüm tipi seçimi — YALNIZCA birini seç.
@@ -55,6 +59,17 @@ static Vector3 echo_of(const Vector3& m) {
     return o;
 }
 
+// PARAM_GAIN sınırları — BEFORE_SET bu aralığın dışındaki değerleri reddeder
+// (örn. host'tan yanlışlıkla gelen aşırı/negatif bir çarpan echo'yu bozmasın).
+static constexpr float GAIN_MIN = 0.0f;
+static constexpr float GAIN_MAX = 10.0f;
+
+static bool gain_in_range(const Vector3& v) {
+    return v.x >= GAIN_MIN && v.x <= GAIN_MAX
+        && v.y >= GAIN_MIN && v.y <= GAIN_MAX
+        && v.z >= GAIN_MIN && v.z <= GAIN_MAX;
+}
+
 
 // ─── Transport (tek Serial, tek düğüm) ───────────────────────────────────────
 
@@ -90,8 +105,34 @@ static void on_rel(const Vector3& msg, void*) {
 
 // Parametre tablosu artık derleme-zamanı constexpr (flash'ta yaşar); &gain statik
 // ömürlü olduğu için adresi geçerli bir constant expression'dır.
-static constexpr auto PARAM_TABLE = minros::overlays::parameters::table(
-    minros::overlays::parameters::rw<PARAM_GAIN>(&gain));
+static constexpr auto PARAM_TABLE = param::table(
+    param::rw<PARAM_GAIN>(&gain));
+
+// Parametre event handler: BEFORE_SET'te sınır dışı gain reddedilir, AFTER_SET'te
+// başarılı yazım loglanır (host tanılaması için).
+static bool on_param_event(u8 id, param::Event ev,
+                            const u8* bytes, u8 len, void*) {
+    if (id != PARAM_GAIN) return true;   // yalnızca gain izleniyor
+
+    Vector3 v;
+    if (!v.from_bytes(bytes, len)) return false;
+
+    if (ev == param::Event::BEFORE_SET) {
+        if (!gain_in_range(v)) {
+            char msg[64];
+            snprintf(msg, sizeof(msg), "PARAM_GAIN reddedildi: %.2f %.2f %.2f", v.x, v.y, v.z);
+            node.log_warn(msg);
+            return false;
+        }
+        return true;
+    }
+
+    // AFTER_SET — değer storage'a yazıldı, bildirim amaçlı logla.
+    char msg[64];
+    snprintf(msg, sizeof(msg), "PARAM_GAIN set: %.2f %.2f %.2f", v.x, v.y, v.z);
+    node.log_info(msg);
+    return true;
+}
 
 void setup() {
     Serial.begin(115200);
@@ -99,6 +140,7 @@ void setup() {
 
     gain.x = gain.y = gain.z = 2.0f;                  // varsayılan ×2
     node.set_params(PARAM_TABLE);                     // Node facade param sunucusu
+    node.set_param_event_handler({&on_param_event, nullptr});
 
     unrel_pub = node.create_publisher<Vector3>(CH_UNREL_PUB);
     rel_pub   = node.create_publisher<Vector3>(CH_REL_PUB, /*reliable=*/true);
@@ -117,14 +159,44 @@ void loop() {
 // ═════════════════════════════════════════════════════════════════════════════
 #elif NODE_TYPE == NODE_TYPE_RAW
 
-static minros::RawNode<>                 node;
-static minros::overlays::reliability::Reliable  rel{ node };   // aynı node'a takılır (ACK kanalına abone)
+static minros::RawNode<>     node;
+static reliability::Reliable rel{ node };   // aynı node'a takılır (ACK kanalına abone)
 
 // Parametre tablosu artık derleme-zamanı constexpr (flash'ta yaşar); &gain statik
 // ömürlü olduğu için adresi geçerli bir constant expression'dır.
-static constexpr auto PARAM_TABLE = minros::overlays::parameters::table(
-    minros::overlays::parameters::rw<PARAM_GAIN>(&gain));
-static minros::overlays::parameters::Params     params{ node, PARAM_TABLE };  // PARAM_REQ'e abone, tablo CTAD ile bağlı
+static constexpr auto PARAM_TABLE = param::table(
+    param::rw<PARAM_GAIN>(&gain));
+static param::Params     params{ node, PARAM_TABLE };  // PARAM_REQ'e abone, tablo CTAD ile bağlı
+
+// Parametre logları için zero-buffer publisher (Node<> facade'ının log_* metodlarının
+// RawNode karşılığı — bkz. overlays::logging::Logger).
+static minros::overlays::logging::Logger<decltype(node)> plog{ node };
+
+// Parametre event handler: BEFORE_SET'te sınır dışı gain reddedilir, AFTER_SET'te
+// başarılı yazım loglanır (host tanılaması için).
+static bool on_param_event(u8 id, param::Event ev,
+                            const u8* bytes, u8 len, void*) {
+    if (id != PARAM_GAIN) return true;   // yalnızca gain izleniyor
+
+    Vector3 v;
+    if (!v.from_bytes(bytes, len)) return false;
+
+    if (ev == param::Event::BEFORE_SET) {
+        if (!gain_in_range(v)) {
+            char msg[64];
+            snprintf(msg, sizeof(msg), "PARAM_GAIN reddedildi: %.2f %.2f %.2f", v.x, v.y, v.z);
+            plog.warn(msg);
+            return false;
+        }
+        return true;
+    }
+
+    // AFTER_SET — değer storage'a yazıldı, bildirim amaçlı logla.
+    char msg[64];
+    snprintf(msg, sizeof(msg), "PARAM_GAIN set: %.2f %.2f %.2f", v.x, v.y, v.z);
+    plog.info(msg);
+    return true;
+}
 
 // Reliable publisher buffer'ı ACK gelene kadar SABİT kalmalı (Reliable pointer tutar).
 static u8 rel_tx[Vector3::SIZE];
@@ -157,6 +229,7 @@ void setup() {
     node.transport = serial_transport;
 
     gain.x = gain.y = gain.z = 2.0f;                  // varsayılan ×2 (tablo zaten &gain'e bağlı)
+    params.set_event_handler({&on_param_event, nullptr});
 
     node.subscribe(CH_UNREL_SUB, { on_unrel_bytes, nullptr });   // best-effort
     rel.subscribe(CH_REL_SUB,    { on_rel_bytes,   nullptr });   // reliable (dedup + ACK)
