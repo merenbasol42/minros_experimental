@@ -22,6 +22,9 @@ host/
 │   ├── latency_rel.py        ← reliable overlay üzerinden gecikme ölçümü
 │   ├── throughput.py         ← throughput ölçümü
 │   └── ack_test.py           ← reliability/ACK testi
+├── test/                     ← donanımsız birim testler (bkz. Testler bölümü)
+│   ├── conftest.py            ← ortak fixture'lar (Parser/Framer/Collector)
+│   └── test_parser_resilience.py  ← Parser'ın bozuk/eksik akıştan toparlanma testleri
 └── lib/minrospy/             ← git submodule → github.com/merenbasol42/minrospy
 ```
 
@@ -50,6 +53,21 @@ minros-latency-rel [PORT] [BAUD]  # reliable overlay üzerinden gecikme ölçüm
 minros-throughput [PORT] [BAUD] [MESAJ_SAYISI] [HEDEF_RATE_MSG_S]
 minros-ack-test [PORT] [BAUD]     # reliability/ACK testi
 ```
+
+## Testler
+
+Gerçek karta ihtiyaç duymayan, minrospy'nin core protokol katmanını (Parser/
+Framer) bellek içi byte akışlarıyla sınayan testler `test/` altında:
+
+```bash
+pip install -e ".[test]"   # pytest'i kur
+python -m pytest test/
+```
+
+**Not:** ROS ortamı `source`lanmışsa (`PYTHONPATH`'te `/opt/ros/...` varsa),
+ROS'un `launch_testing` pytest eklentisi otomatik yüklenmeye çalışıp
+`ModuleNotFoundError: yaml` ile patlayabilir. Bu durumda:
+`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest test/`.
 
 ## Notlar
 

@@ -12,6 +12,9 @@ dependencies = [
     "pyserial>=3.5",
 ]
 
+[project.optional-dependencies]
+test = ["pytest"]
+
 [project.scripts]
 minros-serial = "minros_tools.serial_monitor:main"
 minros-latency = "minros_tools.latency:main"
