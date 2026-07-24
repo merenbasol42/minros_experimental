@@ -73,7 +73,15 @@ static bool gain_in_range(const Vector3& v) {
 
 // ─── Transport (tek Serial, tek düğüm) ───────────────────────────────────────
 
-static u8   tp_get_size   (void*)               { return static_cast<u8>(Serial.available()); }
+// Serial.available() 0..256 döner (HWCDC RX ring buffer kapasitesi 256); u8 ise
+// en fazla 255 tutar. Doğrudan static_cast ile tam 256'da 0'a sarar (256 % 256)
+// — bu da spin_once()'un "okunacak bir şey yok" sanıp Serial.read() hiç
+// çağırmamasına, ring buffer'ın hiç boşalmamasına ve kalıcı kilitlenmeye yol
+// açar (yalnızca donanım reset'i kurtarır). Sarmak yerine 255'e sıkıştırıyoruz.
+static u8   tp_get_size   (void*)               {
+    int n = Serial.available();
+    return static_cast<u8>(n > 255 ? 255 : n);
+}
 static u32  tp_get_time   (void*)               { return millis(); }
 static void tp_read_bytes (u8* b, u8 n, void*)  { Serial.readBytes(b, n); }
 static void tp_write_bytes(u8* b, u8 n, void*)  { Serial.write(b, n); }
