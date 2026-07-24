@@ -21,7 +21,8 @@ host/
 │   ├── latency.py            ← gecikme ölçümü
 │   ├── latency_rel.py        ← reliable overlay üzerinden gecikme ölçümü
 │   ├── throughput.py         ← throughput ölçümü
-│   └── ack_test.py           ← reliability/ACK testi
+│   ├── ack_test.py           ← reliability/ACK testi
+│   └── parser_resilience.py  ← parser dayanıklılığı testi (gerçek kart üzerinden)
 ├── test/                     ← donanımsız birim testler (bkz. Testler bölümü)
 │   ├── conftest.py            ← ortak fixture'lar (Parser/Framer/Collector)
 │   └── test_parser_resilience.py  ← Parser'ın bozuk/eksik akıştan toparlanma testleri
@@ -52,6 +53,7 @@ minros-latency [PORT] [BAUD]      # gecikme ölçümü
 minros-latency-rel [PORT] [BAUD]  # reliable overlay üzerinden gecikme ölçümü
 minros-throughput [PORT] [BAUD] [MESAJ_SAYISI] [HEDEF_RATE_MSG_S]
 minros-ack-test [PORT] [BAUD]     # reliability/ACK testi
+minros-parser-resilience [PORT] [BAUD]  # parser dayanıklılığı testi (gerçek kart üzerinden)
 ```
 
 ## Testler

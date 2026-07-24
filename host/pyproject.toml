@@ -21,6 +21,7 @@ minros-latency = "minros_tools.latency:main"
 minros-latency-rel = "minros_tools.latency_rel:main"
 minros-throughput = "minros_tools.throughput:main"
 minros-ack-test = "minros_tools.ack_test:main"
+minros-parser-resilience = "minros_tools.parser_resilience:main"
 
 [tool.setuptools.packages.find]
 include = ["minros_tools*"]
