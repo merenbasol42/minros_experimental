@@ -24,7 +24,7 @@ from minrospy.interfaces.geometry_msgs import Vector3
 CH_SEND = 0  # cihaz unreliable sub
 CH_RECV = 1  # cihaz unreliable pub (echo)
 
-DEFAULT_RATE = 5000
+DEFAULT_RATE = 5500
 DEFAULT_MSGS = DEFAULT_RATE * 5
 
 def main():
@@ -47,7 +47,7 @@ def main():
     pub = node.create_publisher(Vector3, CH_SEND)
 
     print(f"{c.BOLD}minros best-effort throughput testi — {port} @ {baud}{c.RESET}")
-    print(f"  {n_msgs} mesaj, hedef hız: {target_rate} msg/s ({interval * 1000:.1f} ms aralık)\n")
+    print(f"  {n_msgs} mesaj, hedef hız: {target_rate} msg/s ({interval * 1000:.4f} ms aralık)\n")
     time.sleep(0.1)
 
     rng = random.Random(42)
