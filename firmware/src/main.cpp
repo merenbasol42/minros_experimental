@@ -111,11 +111,6 @@ static void on_rel(const Vector3& msg, void*) {
     rel_pub.publish(echo_of(msg));                 // reliable echo (uçuştaysa drop'lanır)
 }
 
-// Parametre tablosu artık derleme-zamanı constexpr (flash'ta yaşar); &gain statik
-// ömürlü olduğu için adresi geçerli bir constant expression'dır.
-static constexpr auto PARAM_TABLE = param::table(
-    param::rw<PARAM_GAIN>(&gain));
-
 // Parametre event handler: BEFORE_SET'te sınır dışı gain reddedilir, AFTER_SET'te
 // başarılı yazım loglanır (host tanılaması için).
 static bool on_param_event(u8 id, param::Event ev,
@@ -147,7 +142,7 @@ void setup() {
     node.transport = serial_transport;
 
     gain.x = gain.y = gain.z = 2.0f;                  // varsayılan ×2
-    node.set_params(PARAM_TABLE);                     // Node facade param sunucusu
+    node.register_param(PARAM_GAIN, &gain);           // runtime registry (Node facade)
     node.set_param_event_handler({&on_param_event, nullptr});
 
     unrel_pub = node.create_publisher<Vector3>(CH_UNREL_PUB);
@@ -170,11 +165,8 @@ void loop() {
 static minros::RawNode<>     node;
 static reliability::Reliable rel{ node };   // aynı node'a takılır (ACK kanalına abone)
 
-// Parametre tablosu artık derleme-zamanı constexpr (flash'ta yaşar); &gain statik
-// ömürlü olduğu için adresi geçerli bir constant expression'dır.
-static constexpr auto PARAM_TABLE = param::table(
-    param::rw<PARAM_GAIN>(&gain));
-static param::Params     params{ node, PARAM_TABLE };  // PARAM_REQ'e abone, tablo CTAD ile bağlı
+// Runtime registry: en fazla 1 parametre (PARAM_GAIN) taşıyacak şekilde boyutlandırıldı.
+static param::Server<decltype(node), 1> params{ node };   // PARAM_REQ'e abone olur
 
 // Parametre logları için zero-buffer publisher (Node<> facade'ının log_* metodlarının
 // RawNode karşılığı — bkz. overlays::logging::Logger).
@@ -236,7 +228,11 @@ void setup() {
     Serial.begin(115200);
     node.transport = serial_transport;
 
-    gain.x = gain.y = gain.z = 2.0f;                  // varsayılan ×2 (tablo zaten &gain'e bağlı)
+    gain.x = gain.y = gain.z = 2.0f;                  // varsayılan ×2
+    // RAW mod: Server, MsgT'den bihaber (yalnızca Entry görür) — Entry'yi elle
+    // kuruyoruz, tıpkı aşağıdaki echo callback'lerinin serileştirmeyi elle
+    // yapması gibi.
+    params.register_param(param::Entry{ static_cast<void*>(&gain), PARAM_GAIN, Vector3::SIZE, 0 });
     params.set_event_handler({&on_param_event, nullptr});
 
     node.subscribe(CH_UNREL_SUB, { on_unrel_bytes, nullptr });   // best-effort
