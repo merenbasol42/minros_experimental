@@ -21,6 +21,7 @@ import pytest
 
 from minrospy.core import wireframe
 from minrospy.core.framer import Framer
+from minrospy.interfaces.control_msgs import PidGains
 from minrospy.interfaces.geometry_msgs import Quaternion, Twist, Vector3
 from minrospy.interfaces.std_msgs import (
     Bool,
@@ -28,7 +29,6 @@ from minrospy.interfaces.std_msgs import (
     Int8,
     Int16,
     Int32,
-    PidGains,
     UInt8,
     UInt16,
     UInt32,

@@ -6,7 +6,7 @@
 #include <minros/interfaces/geometry_msgs/vector3.hpp>
 #include <minros/interfaces/geometry_msgs/quaternion.hpp>
 #include <minros/interfaces/geometry_msgs/twist.hpp>
-#include <minros/interfaces/std_msgs/pid_gains.hpp>
+#include <minros/interfaces/control_msgs/pid_gains.hpp>
 
 namespace conformance {
 
@@ -61,6 +61,7 @@ template<class CheckFn>
 inline void run_message_checks(CheckFn check) {
     using namespace minros::interfaces::std_msgs;
     using namespace minros::interfaces::geometry_msgs;
+    using namespace minros::interfaces::control_msgs;
     {
         Float32 m{};
         m.value = 0.0f;

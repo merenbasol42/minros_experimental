@@ -159,7 +159,7 @@ def build_hpp() -> str:
     L.append("#include <minros/interfaces/geometry_msgs/vector3.hpp>")
     L.append("#include <minros/interfaces/geometry_msgs/quaternion.hpp>")
     L.append("#include <minros/interfaces/geometry_msgs/twist.hpp>")
-    L.append("#include <minros/interfaces/std_msgs/pid_gains.hpp>")
+    L.append("#include <minros/interfaces/control_msgs/pid_gains.hpp>")
     L.append("")
     L.append("namespace conformance {")
     L.append("")
@@ -201,6 +201,7 @@ def build_hpp() -> str:
     L.append("inline void run_message_checks(CheckFn check) {")
     L.append("    using namespace minros::interfaces::std_msgs;")
     L.append("    using namespace minros::interfaces::geometry_msgs;")
+    L.append("    using namespace minros::interfaces::control_msgs;")
     for name, mtype, fields in MESSAGES:
         L.append("    {")
         L.append(f"        {mtype} m{{}};")
